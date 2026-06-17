@@ -59,7 +59,7 @@
   <script type="module">
     import { requireAccess } from "./auth.js";
     import { mountSync, trackWrite } from "./sync.js";
-    import { db } from "./firebase-config.js";
+    import { db, CATEGORIES_DEFAUT } from "./firebase-config.js";
     import { toast, esc } from "./app.js";
     import {
       ref, onValue, push, update, remove
@@ -115,8 +115,11 @@
     }
 
     function renderCategories() {
-      const cats = [...new Set(Object.values(articles)
-        .map(a => a.categorie).filter(Boolean))].sort();
+      // Catégories par défaut (Boisson, Nourriture) + celles déjà utilisées
+      const cats = [...new Set([
+        ...CATEGORIES_DEFAUT,
+        ...Object.values(articles).map(a => a.categorie).filter(Boolean)
+      ])].sort();
       document.getElementById("categories").innerHTML =
         cats.map(c => `<option value="${esc(c)}">`).join("");
     }

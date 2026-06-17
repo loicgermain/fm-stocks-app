@@ -40,3 +40,7 @@ export const REMORQUES = [
   { id: "pre",     nom: "Pré" },
   { id: "place",   nom: "Place" }
 ];
+
+// Catégories proposées d'office (les bénévoles peuvent en ajouter d'autres,
+// qui viennent s'ajouter à la liste dès qu'un article les utilise).
+export const CATEGORIES_DEFAUT = ["Boisson", "Nourriture"];

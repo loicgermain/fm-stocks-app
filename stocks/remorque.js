@@ -78,6 +78,8 @@ function injectMarkup() {
     <div class="modal-bg" id="add-modal">
       <form class="modal" id="add-form">
         <h3>Ajouter un article</h3>
+        <label for="add-cat">Catégorie</label>
+        <select id="add-cat"></select>
         <label for="add-article">Article (catalogue)</label>
         <select id="add-article"></select>
         <label for="add-cond">Conditionnement</label>
@@ -359,21 +361,35 @@ export async function initRemorque(remId) {
   // ============ Modale ajout d'un article du catalogue ============
   const addModal = document.getElementById("add-modal");
 
+  let addDispo = []; // ids d'articles disponibles (pas encore dans la remorque)
+
   document.getElementById("btn-add").addEventListener("click", () => {
-    const sel = document.getElementById("add-article");
     // Articles du catalogue pas encore présents dans cette remorque
-    const dispo = Object.keys(articles)
+    addDispo = Object.keys(articles)
       .filter(id => !(id in stock))
       .sort((a, b) => (articles[a].nom || "").localeCompare(articles[b].nom || ""));
-    if (!dispo.length) {
+    if (!addDispo.length) {
       toast("Tous les articles du catalogue sont déjà présents (ou catalogue vide).");
       return;
     }
-    sel.innerHTML = dispo.map(id =>
-      `<option value="${id}">${esc(articles[id].nom)}</option>`).join("");
-    syncAddDefaults();
+    // Catégories présentes parmi les articles disponibles
+    const cats = [...new Set(addDispo.map(id => articles[id].categorie).filter(Boolean))].sort();
+    document.getElementById("add-cat").innerHTML =
+      `<option value="">Toutes les catégories</option>` +
+      cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+    renderAddArticles();
     addModal.classList.add("open");
   });
+
+  // (Re)remplit la liste d'articles selon la catégorie choisie
+  function renderAddArticles() {
+    const cat = document.getElementById("add-cat").value;
+    const ids = cat ? addDispo.filter(id => (articles[id].categorie || "") === cat) : addDispo;
+    document.getElementById("add-article").innerHTML = ids.map(id =>
+      `<option value="${id}">${esc(articles[id].nom)}</option>`).join("");
+    syncAddDefaults();
+  }
+  document.getElementById("add-cat").addEventListener("change", renderAddArticles);
 
   function syncAddDefaults() {
     const id = document.getElementById("add-article").value;
