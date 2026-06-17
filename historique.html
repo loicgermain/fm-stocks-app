@@ -14,6 +14,7 @@
   <header class="app">
     <a class="back" href="index.html" title="Retour">‹</a>
     <h1>Historique</h1>
+    <button id="btn-reset" class="ghost" title="Vider l'historique (admin)">🗑️</button>
   </header>
 
   <main class="wrap">
@@ -37,13 +38,26 @@
 
   <script type="module">
     import { requireAccess } from "./auth.js";
-    import { mountSync } from "./sync.js";
+    import { mountSync, trackWrite } from "./sync.js";
     import { db, REMORQUES } from "./firebase-config.js";
-    import { esc } from "./app.js";
-    import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { esc, toast } from "./app.js";
+    import { ref, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
     await requireAccess();
     mountSync(db);
+
+    // --- Vider l'historique (réservé admin, code 1218) ---
+    const ADMIN_CODE = "1218";
+    document.getElementById("btn-reset").addEventListener("click", async () => {
+      const code = prompt("Code admin pour VIDER tout l'historique :");
+      if (code === null) return;
+      if (code !== ADMIN_CODE) { toast("Code incorrect"); return; }
+      if (!confirm("Effacer DÉFINITIVEMENT tout l'historique des mouvements ?\n(Les stocks actuels ne sont pas touchés.)")) return;
+      try {
+        await trackWrite(remove(ref(db, "mouvements")));
+        toast("Historique vidé");
+      } catch (err) { toast("Erreur : " + err.message); }
+    });
 
     const remNom = Object.fromEntries(REMORQUES.map(r => [r.id, r.nom]));
     document.getElementById("f-rem").innerHTML =

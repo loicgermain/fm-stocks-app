@@ -18,6 +18,7 @@ function injectMarkup() {
       <img class="brand-logo" src="../medias/favicon.png" alt="Fête Médiévale">
       <h1 id="titre">Remorque</h1>
       <button id="qui" class="ghost" title="Changer de bénévole"></button>
+      <button id="btn-inv" class="secondary" title="Inventaire rapide">📋</button>
       <button id="btn-add">+ Ajouter</button>
     </header>
 
@@ -41,6 +42,19 @@ function injectMarkup() {
           <button type="button" class="ghost" id="edit-remove" style="margin-right:auto">Retirer</button>
           <button type="button" class="secondary" id="edit-cancel">Annuler</button>
           <button type="submit">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Inventaire rapide -->
+    <div class="modal-bg" id="inv-modal">
+      <form class="modal" id="inv-form" style="max-width:480px">
+        <h3>Inventaire — <span id="inv-rem"></span></h3>
+        <p class="muted" style="margin-top:0">Saisis les quantités réelles comptées, puis valide. Les écarts sont enregistrés dans l'historique.</p>
+        <div id="inv-list" style="max-height:55vh;overflow:auto"></div>
+        <div class="modal-actions">
+          <button type="button" class="secondary" id="inv-cancel">Annuler</button>
+          <button type="submit">Valider l'inventaire</button>
         </div>
       </form>
     </div>
@@ -237,6 +251,64 @@ export async function initRemorque(remId) {
       await trackWrite(remove(ref(db, `stocks/${remId}/${editId}`)));
       toast("Article retiré");
       closeEdit();
+    } catch (err) { toast("Erreur : " + err.message); }
+  });
+
+  // ============ Inventaire rapide ============
+  const invModal = document.getElementById("inv-modal");
+  document.getElementById("inv-rem").textContent = remorque.nom;
+
+  document.getElementById("btn-inv").addEventListener("click", () => {
+    const ids = Object.keys(stock).sort((a, b) => {
+      const A = articles[a] || {}, B = articles[b] || {};
+      return (A.categorie || "").localeCompare(B.categorie || "")
+          || (A.nom || "").localeCompare(B.nom || "");
+    });
+    if (!ids.length) { toast("Aucun article à inventorier."); return; }
+    document.getElementById("inv-list").innerHTML = ids.map(id => {
+      const a = articles[id] || { nom: id };
+      const s = stock[id] || {};
+      return `
+        <div class="article-row">
+          <div class="info">
+            <div class="nom">${esc(a.nom)}</div>
+            <div class="sub">${esc(s.conditionnement || a.unite || "")}</div>
+          </div>
+          <input type="number" min="0" step="1" inputmode="numeric"
+                 style="width:80px;text-align:right"
+                 data-inv="${id}" value="${s.qte ?? 0}">
+        </div>`;
+    }).join("");
+    invModal.classList.add("open");
+  });
+
+  function closeInv() { invModal.classList.remove("open"); }
+  document.getElementById("inv-cancel").addEventListener("click", closeInv);
+  invModal.addEventListener("click", e => { if (e.target === invModal) closeInv(); });
+
+  document.getElementById("inv-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const qui = ensureQui();
+    const inputs = invModal.querySelectorAll("[data-inv]");
+    let changes = 0;
+    try {
+      for (const inp of inputs) {
+        const id = inp.dataset.inv;
+        const newQte = Number(inp.value) || 0;
+        const oldQte = Number(stock[id]?.qte) || 0;
+        if (newQte === oldQte) continue;
+        changes++;
+        await trackWrite(update(ref(db, `stocks/${remId}/${id}`), { qte: newQte }));
+        await push(ref(db, "mouvements"), {
+          remorqueId: remId, articleId: id,
+          type: newQte > oldQte ? "in" : "out",
+          qte: Math.abs(newQte - oldQte),
+          qui: qui || null, note: "inventaire",
+          timestamp: serverTimestamp()
+        });
+      }
+      toast(changes ? `Inventaire validé (${changes} modif.)` : "Aucun changement");
+      closeInv();
     } catch (err) { toast("Erreur : " + err.message); }
   });
 
