@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cuisine — FM Stocks</title>
+  <link rel="icon" href="medias/favicon.png">
+  <link rel="apple-touch-icon" href="medias/favicon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#F47D0D">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ── Bandeau alertes cuisine ── */
+    #banner {
+      border-radius: var(--radius);
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    #banner.ok {
+      background: rgba(76,154,90,.15);
+      border: 1px solid var(--ok);
+      padding: 18px 16px;
+      text-align: center;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--ok);
+    }
+    .alert-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 14px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .alert-row:last-child { border-bottom: none; }
+    #banner.has-alerts .alert-row.danger { background: rgba(157,0,41,.18); }
+    #banner.has-alerts .alert-row.warn   { background: rgba(179,78,0,.15); }
+    .alert-row .badge { flex-shrink: 0; font-size: .8rem; min-width: 46px; text-align: center; }
+    .alert-row .info  { flex: 1; }
+    .alert-row .art   { font-weight: 700; font-size: 1rem; }
+    .alert-row .loc   { font-size: .8rem; color: var(--text-dim); margin-top: 2px; }
+    .alert-row .qte-big {
+      font-size: 1.6rem;
+      font-weight: 800;
+      min-width: 48px;
+      text-align: right;
+      line-height: 1;
+    }
+    .alert-row.danger .qte-big { color: var(--danger); }
+    .alert-row.warn   .qte-big { color: var(--warn); }
+
+    /* ── Tableau stocks ── */
+    .cat-title {
+      font-size: .75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--text-dim);
+      margin: 20px 0 6px;
+    }
+    .stock-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 6px;
+    }
+    .stock-row.empty { border-left: 4px solid var(--danger); }
+    .stock-row.low   { border-left: 4px solid var(--warn); }
+    .stock-row.ok    { border-left: 4px solid var(--ok); }
+    .stock-row .nom  { flex: 1; font-weight: 600; }
+    .stock-row .loc  { font-size: .75rem; color: var(--text-dim); }
+    .stock-row .total {
+      font-size: 1.4rem;
+      font-weight: 800;
+      min-width: 44px;
+      text-align: right;
+    }
+    .stock-row.empty .total { color: var(--danger); }
+    .stock-row.low   .total { color: var(--warn); }
+  </style>
+</head>
+<body>
+  <header class="app">
+    <img class="brand-logo" src="medias/favicon.png" alt="Fête Médiévale">
+    <h1>Cuisine</h1>
+    <button id="qui-btn" class="chip" title="Changer de bénévole">👤 …</button>
+    <button id="role-btn" class="chip" title="Changer de rôle">🔓 …</button>
+    <button id="notif-btn" class="icon-btn" title="Activer les alertes notifications">🔕</button>
+  </header>
+
+  <main class="wrap">
+    <div id="banner"><p class="muted">Chargement…</p></div>
+    <div id="stocks"></div>
+    <p class="center muted" style="font-size:.75rem;margin-top:24px">
+      <a href="index.html" style="color:var(--text-dim)">← Tableau de bord général</a>
+    </p>
+  </main>
+
+  <script type="module">
+    import { requireAccess, clearAccess } from "./auth.js";
+    import { mountSync } from "./sync.js";
+    import { db, REMORQUES } from "./firebase-config.js";
+    import { esc, stockStatus, mountSunToggle, getPerm } from "./app.js";
+    import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    await requireAccess();
+
+    // Cuisine = plein accès stocks, pas admin système
+    // Rediriger les non-cuisine/non-logistique vers l'accueil
+    if (getPerm() === "lecture") { location.replace("index.html"); }
+
+    mountSunToggle();
+    mountSync(db);
+
+    // --- Bénévole ---
+    const QUI_KEY = "fm-qui";
+    const getQui = () => localStorage.getItem(QUI_KEY) || "";
+    const renderQui = () => {
+      document.getElementById("qui-btn").textContent = getQui() ? `👤 ${getQui()}` : "👤 (moi)";
+    };
+    renderQui();
+    document.getElementById("qui-btn").addEventListener("click", () => {
+      const q = (prompt("Ton prénom :", getQui()) || "").trim();
+      if (q) { localStorage.setItem(QUI_KEY, q); renderQui(); }
+    });
+
+    // --- Rôle ---
+    document.getElementById("role-btn").textContent = `🔓 ${localStorage.getItem("fm-role") || "?"}`;
+    document.getElementById("role-btn").addEventListener("click", () => {
+      if (!confirm("Changer d'équipe ? Tu devras entrer un nouveau code.")) return;
+      clearAccess(); location.reload();
+    });
+
+    // --- Notifications ---
+    const notifBtn = document.getElementById("notif-btn");
+    function refreshNotifBtn() {
+      const p = Notification.permission;
+      notifBtn.textContent = p === "granted" ? "🔔" : "🔕";
+      notifBtn.title = p === "granted" ? "Alertes notifications actives" : "Activer les alertes notifications";
+    }
+    refreshNotifBtn();
+    notifBtn.addEventListener("click", async () => {
+      if (!("Notification" in window)) return;
+      if (Notification.permission === "granted") return;
+      const p = await Notification.requestPermission();
+      refreshNotifBtn();
+      if (p !== "granted") alert("Autorisation refusée — vérifie les paramètres du navigateur.");
+    });
+
+    // --- Données Firebase ---
+    let articles = {}, stocks = {};
+    let prevAlertKeys = new Set();
+    let firstLoad = true;
+
+    onValue(ref(db, "articles"), s => { articles = s.val() || {}; render(); });
+    onValue(ref(db, "stocks"),   s => { stocks   = s.val() || {}; render(); });
+
+    // --- Calcul état global par article ---
+    function buildArticleMap() {
+      const map = {}; // aid → { nom, categorie, seuil, total, perRem: [{nom, qte, status}] }
+      for (const r of REMORQUES) {
+        const st = stocks[r.id] || {};
+        for (const [aid, sv] of Object.entries(st)) {
+          if (!map[aid]) {
+            map[aid] = {
+              nom:       articles[aid]?.nom       || aid,
+              categorie: articles[aid]?.categorie || "Autres",
+              total: 0, perRem: []
+            };
+          }
+          const qte = Number(sv.qte) || 0;
+          const s   = stockStatus(qte, sv.seuilAlerte);
+          map[aid].total += qte;
+          map[aid].perRem.push({ nom: r.nom, id: r.id, qte, status: s });
+        }
+      }
+      // Statut global = pire statut parmi les remorques
+      for (const a of Object.values(map)) {
+        a.status = a.perRem.some(r => r.status === "empty") ? "empty"
+                 : a.perRem.some(r => r.status === "low")   ? "low"
+                 : "ok";
+      }
+      return map;
+    }
+
+    function notify(newAlerts) {
+      if (!newAlerts.length || Notification.permission !== "granted") return;
+      const body = newAlerts
+        .map(a => `${a.nom} — ${a.status === "empty" ? "VIDE" : "BAS"} (${a.locs})`)
+        .join("\n");
+      navigator.serviceWorker?.ready.then(reg =>
+        reg.showNotification("⚠️ Stock bas — Cuisine", {
+          body, icon: "./medias/favicon.png",
+          tag: "fm-cuisine-alert", renotify: true
+        })
+      );
+    }
+
+    function render() {
+      const map = buildArticleMap();
+      const items = Object.entries(map).map(([aid, a]) => ({ aid, ...a }));
+
+      // Alertes (vides + bas)
+      const alerts = items
+        .filter(a => a.status !== "ok")
+        .sort((a, b) => (a.status === "empty" ? -1 : 1) - (b.status === "empty" ? -1 : 1));
+
+      renderBanner(alerts);
+      renderStocks(items);
+      checkNotif(alerts);
+    }
+
+    function renderBanner(alerts) {
+      const el = document.getElementById("banner");
+      if (!alerts.length) {
+        el.className = "ok";
+        el.innerHTML = `✅ Tous les stocks sont au-dessus des seuils d'alerte`;
+        return;
+      }
+      el.className = "has-alerts card" ;
+      el.style.padding = "0";
+      el.innerHTML = alerts.map(a => {
+        const locs = a.perRem
+          .filter(r => r.status !== "ok")
+          .map(r => `${esc(r.nom)} : <strong>${r.qte}</strong>`)
+          .join(" · ");
+        return `
+          <div class="alert-row ${a.status === "empty" ? "danger" : "warn"}">
+            <span class="badge ${a.status === "empty" ? "danger" : "warn"}">
+              ${a.status === "empty" ? "VIDE" : "BAS"}
+            </span>
+            <div class="info">
+              <div class="art">${esc(a.nom)}</div>
+              <div class="loc">${locs}</div>
+            </div>
+            <div class="qte-big">${a.total}</div>
+          </div>`;
+      }).join("");
+    }
+
+    function renderStocks(items) {
+      const el = document.getElementById("stocks");
+      // Grouper par catégorie, trier : vides→bas→ok puis alphabétique
+      const cats = {};
+      for (const a of items) {
+        (cats[a.categorie] || (cats[a.categorie] = [])).push(a);
+      }
+      // Ordre des catégories : Nourriture en premier
+      const catOrder = Object.keys(cats).sort((a, b) => {
+        if (a.toLowerCase().includes("nourrit")) return -1;
+        if (b.toLowerCase().includes("nourrit")) return 1;
+        return a.localeCompare(b);
+      });
+
+      const statusRank = { empty: 0, low: 1, ok: 2 };
+      let html = "";
+      for (const cat of catOrder) {
+        const rows = cats[cat].sort(
+          (a, b) => statusRank[a.status] - statusRank[b.status] || a.nom.localeCompare(b.nom)
+        );
+        html += `<div class="cat-title">${esc(cat)}</div>`;
+        for (const a of rows) {
+          const locs = a.perRem
+            .filter(r => r.qte > 0)
+            .map(r => `${esc(r.nom)} ${r.qte}`)
+            .join(" · ");
+          html += `
+            <div class="stock-row ${a.status}">
+              <div class="nom">${esc(a.nom)}</div>
+              <div class="loc">${locs || "—"}</div>
+              <div class="total">${a.total}</div>
+            </div>`;
+        }
+      }
+      el.innerHTML = html || `<p class="empty-state">Aucun stock enregistré.</p>`;
+    }
+
+    function checkNotif(alerts) {
+      if (firstLoad) {
+        prevAlertKeys = new Set(alerts.map(a => a.aid));
+        firstLoad = false;
+        return;
+      }
+      const newAlerts = alerts
+        .filter(a => !prevAlertKeys.has(a.aid))
+        .map(a => ({
+          nom: a.nom,
+          status: a.status,
+          locs: a.perRem.filter(r => r.status !== "ok").map(r => r.nom).join(", ")
+        }));
+      prevAlertKeys = new Set(alerts.map(a => a.aid));
+      notify(newAlerts);
+    }
+  </script>
+</body>
+</html>

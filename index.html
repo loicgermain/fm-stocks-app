@@ -40,10 +40,12 @@
     import { mountSync } from "./sync.js";
     import { db, REMORQUES } from "./firebase-config.js";
     import * as cfg from "./firebase-config.js";   // version lue sans casser si absente
-    import { esc, stockStatus, mountSunToggle, isAdmin, getMyRemorques, getPerm } from "./app.js";
+    import { esc, stockStatus, mountSunToggle, isAdmin, getMyRemorques, getPerm, getRole } from "./app.js";
     import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
     await requireAccess();
+    // Cuisine a son propre dashboard
+    if (getRole() === "cuisine") { location.replace("cuisine-dashboard.html"); }
     mountSunToggle();
     mountSync(db);
     document.getElementById("version").textContent = "FM Stocks · version " + (cfg.APP_VERSION || "?");

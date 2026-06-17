@@ -53,7 +53,7 @@ export const ROLES = [
   { id: "admin",      label: "Admin",      pin: "1218", perm: "admin"      },
   { id: "logistique", label: "Logistique", pin: "1516", perm: "logistique" },
   { id: "poste",      label: "Poste",      pin: "2024", perm: "sortie"     },
-  { id: "cuisine",    label: "Cuisine",    pin: "3035", perm: "lecture"    },
+  { id: "cuisine",    label: "Cuisine",    pin: "3035", perm: "logistique" },
 ];
 
 // Version de l'app affichée en bas du dashboard et sur l'écran de code.

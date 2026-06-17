@@ -27,6 +27,7 @@ export function mountSunToggle() {
 // ── Rôle & accès ─────────────────────────────────────────────────────────────
 // perm: "admin" | "logistique" | "sortie" | "lecture"
 export function getPerm()       { return localStorage.getItem("fm-perm") || "lecture"; }
+export function getRole()       { return localStorage.getItem("fm-role") || null; }
 export function isAdmin()       { return getPerm() === "admin"; }
 // fullEdit : admin + logistique peuvent tout faire sur les stocks
 export function isFullEdit()    { const p = getPerm(); return p === "admin" || p === "logistique"; }
