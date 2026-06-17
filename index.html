@@ -14,7 +14,8 @@
   <header class="app">
     <img class="brand-logo" src="medias/favicon.png" alt="Fête Médiévale">
     <h1>FM Stocks</h1>
-    <a class="btn secondary" href="admin.html">Catalogue</a>
+    <button id="qui-btn" class="chip" title="Changer de bénévole">👤 …</button>
+    <a class="chip" href="admin.html" style="text-decoration:none">📚 Catalogue</a>
   </header>
 
   <main class="wrap">
@@ -46,11 +47,24 @@
     mountSync(db);
     document.getElementById("version").textContent = "FM Stocks · version " + (cfg.APP_VERSION || "?");
 
-    let articles = {};
-    let stocks = {};
+    // --- Bénévole (nom partagé avec les pages remorques) ---
+    const QUI_KEY = "fm-qui";
+    const getQui = () => localStorage.getItem(QUI_KEY) || "";
+    function renderQui() {
+      const q = getQui();
+      document.getElementById("qui-btn").textContent = q ? `👤 ${q}` : "👤 (moi)";
+    }
+    renderQui();
+    document.getElementById("qui-btn").addEventListener("click", () => {
+      const q = (prompt("Ton prénom :", getQui()) || "").trim();
+      if (q) { localStorage.setItem(QUI_KEY, q); renderQui(); }
+    });
 
-    onValue(ref(db, "articles"), s => { articles = s.val() || {}; render(); });
-    onValue(ref(db, "stocks"),   s => { stocks   = s.val() || {}; render(); });
+    let articles = {}, stocks = {}, mouvements = {};
+
+    onValue(ref(db, "articles"),   s => { articles   = s.val() || {}; render(); });
+    onValue(ref(db, "stocks"),     s => { stocks     = s.val() || {}; render(); });
+    onValue(ref(db, "mouvements"), s => { mouvements = s.val() || {}; render(); });
 
     function render() {
       renderTiles();
@@ -69,6 +83,24 @@
       return { total, low, empty };
     }
 
+    function relTime(ts) {
+      if (!ts) return null;
+      const min = Math.floor((Date.now() - ts) / 60000);
+      if (min < 2)  return "à l'instant";
+      if (min < 60) return `il y a ${min} min`;
+      const h = Math.floor(min / 60);
+      if (h < 24)   return `il y a ${h}h`;
+      return `il y a ${Math.floor(h / 24)}j`;
+    }
+
+    function lastUpdateFor(remId) {
+      let maxTs = 0;
+      for (const m of Object.values(mouvements)) {
+        if (m.remorqueId === remId && (m.timestamp || 0) > maxTs) maxTs = m.timestamp;
+      }
+      return maxTs || null;
+    }
+
     function renderTiles() {
       document.getElementById("tiles").innerHTML = REMORQUES.map(r => {
         const { total, low, empty } = statsFor(r.id);
@@ -78,10 +110,12 @@
           : `${total} article${total > 1 ? "s" : ""}` +
             (empty ? ` · ${empty} vide${empty > 1 ? "s" : ""}` : "") +
             (low ? ` · ${low} bas` : "");
+        const last = relTime(lastUpdateFor(r.id));
         return `
           <a class="remorque-tile ${alerte ? "alerte" : ""}" href="stocks/${r.id}.html">
             <div class="nom">${esc(r.nom)}</div>
             <div class="meta">${meta}</div>
+            ${last ? `<div class="meta" style="margin-top:4px;font-size:.75rem">🕐 ${last}</div>` : ""}
           </a>`;
       }).join("");
     }
