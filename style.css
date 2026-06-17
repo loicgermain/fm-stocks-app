@@ -336,6 +336,31 @@ th { color: var(--text-dim); font-size: .8rem; font-weight: 600; }
 #sync.flash { background: rgba(76,154,90,.18); }
 @keyframes sync-pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
 
+/* ── Mode Soleil : lisibilité extérieure / plein soleil ─────────────── */
+html[data-sun] {
+  --bg:          #ffffff;
+  --surface:     #f4eef4;
+  --surface-2:   #e9dce7;
+  --border:      #6E1A4E;
+  --text:        #0e000e;
+  --text-dim:    #4a1546;
+  --accent:      #c05c00;
+  --accent-dark: #964800;
+  --mauve:       #6E1A4E;
+  --ok:          #1a6b28;
+  --warn:        #b34e00;
+  --danger:      #9d0029;
+  --shadow:      0 2px 8px rgba(0,0,0,.18);
+}
+html[data-sun] body { font-size: 17px; }
+html[data-sun] .badge.ok     { background: #c5eecb; color: #0a3212; }
+html[data-sun] .badge.warn   { background: #ffddb8; color: #5a2500; }
+html[data-sun] .badge.danger { background: #ffccd9; color: #5a0015; }
+html[data-sun] button, html[data-sun] .btn { color: #fff; }
+html[data-sun] button.secondary, html[data-sun] .btn.secondary { color: var(--text); }
+html[data-sun] button.ghost  { color: var(--text-dim); }
+html[data-sun] #sync { background: var(--surface); border-color: var(--border); }
+
 /* Impression QR */
 @media print {
   body { background: #fff; color: #000; }

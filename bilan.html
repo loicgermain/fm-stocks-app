@@ -37,10 +37,11 @@
     import { requireAccess } from "./auth.js";
     import { mountSync, trackWrite } from "./sync.js";
     import { db, REMORQUES } from "./firebase-config.js";
-    import { esc, toast } from "./app.js";
+    import { esc, toast, mountSunToggle } from "./app.js";
     import { ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
     await requireAccess();
+    mountSunToggle();
     mountSync(db);
 
     const remNom = Object.fromEntries(REMORQUES.map(r => [r.id, r.nom]));

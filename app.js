@@ -1,5 +1,29 @@
 // app.js — utilitaires partagés (sans dépendance Firebase)
 
+// ── Mode Soleil ───────────────────────────────────────────────────────────────
+const _SUN_KEY = "fm-sun";
+// Restaure immédiatement le thème sauvegardé (évite le flash au rechargement).
+if (localStorage.getItem(_SUN_KEY) === "1")
+  document.documentElement.setAttribute("data-sun", "1");
+
+export function mountSunToggle() {
+  const hdr = document.querySelector("header.app");
+  if (!hdr) return;
+  const root = document.documentElement;
+  const btn = document.createElement("button");
+  btn.className = "icon-btn";
+  const update = () => { btn.textContent = root.hasAttribute("data-sun") ? "🌙" : "☀️"; btn.title = root.hasAttribute("data-sun") ? "Thème sombre" : "Mode soleil"; };
+  update();
+  btn.addEventListener("click", () => {
+    const next = !root.hasAttribute("data-sun");
+    next ? root.setAttribute("data-sun", "1") : root.removeAttribute("data-sun");
+    localStorage.setItem(_SUN_KEY, next ? "1" : "0");
+    update();
+  });
+  hdr.appendChild(btn);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Petit toast en bas d'écran
 let toastEl;
 let toastTimer;
