@@ -26,8 +26,8 @@
     <p class="muted" id="resume" style="font-size:.85rem"></p>
     <div id="table"></div>
 
-    <h2>Zone admin</h2>
-    <div class="card" style="display:flex;flex-direction:column;gap:14px">
+    <h2 id="admin-title">Zone admin</h2>
+    <div id="admin-section" class="card" style="display:flex;flex-direction:column;gap:14px">
       <div>
         <p class="muted" style="margin-top:0;margin-bottom:8px">Remet toutes les quantités à 0 dans les remorques (catalogue et seuils conservés).</p>
         <button id="reset-stocks" class="minus">🧹 Stocks → zéro</button>
@@ -49,12 +49,17 @@
     import { requireAccess } from "./auth.js";
     import { mountSync, trackWrite } from "./sync.js";
     import { db, REMORQUES } from "./firebase-config.js";
-    import { esc, toast, mountSunToggle } from "./app.js";
+    import { esc, toast, mountSunToggle, isAdmin } from "./app.js";
     import { ref, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
     await requireAccess();
     mountSunToggle();
     mountSync(db);
+
+    if (!isAdmin()) {
+      document.getElementById("admin-title").style.display = "none";
+      document.getElementById("admin-section").style.display = "none";
+    }
 
     const remNom = Object.fromEntries(REMORQUES.map(r => [r.id, r.nom]));
     let articles = {}, stocks = {}, mouvements = {};

@@ -1,43 +1,40 @@
-// auth.js — verrouillage simple par code PIN partagé.
-//
-// ⚠️ Sécurité « légère » : empêche l'usage de l'interface par des curieux,
-// mais la base Firebase reste techniquement ouverte. Pour une vraie
-// protection, il faudrait Firebase Auth + règles. Suffisant pour une fête.
-//
-// Le code se change ci-dessous (variable PIN).
+// auth.js — verrouillage par rôle / code PIN d'équipe.
+import { ROLES } from "./firebase-config.js";
 
-const PIN = "1516";            // <-- code partagé aux bénévoles
-const KEY = "fm-unlocked";     // mémorise le déverrouillage sur l'appareil
+const ROLE_KEY = "fm-role";
+const REM_KEY  = "fm-rem";
 
-// Enregistre le service worker (app installable + lancement hors-ligne).
-// sw.js est à la racine du dépôt ; on adapte le chemin selon la profondeur.
 if ("serviceWorker" in navigator) {
   const swPath = location.pathname.includes("/stocks/") ? "../sw.js" : "./sw.js";
-
-  // Recharge automatiquement la page quand une nouvelle version prend la main,
-  // pour que les bénévoles aient toujours la dernière version sans manip.
   let refreshing = false;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (refreshing) return;
-    refreshing = true;
-    location.reload();
+    if (refreshing) return; refreshing = true; location.reload();
   });
-
-  navigator.serviceWorker.register(swPath)
-    .then(reg => { reg.update(); })   // vérifie une mise à jour à chaque ouverture
-    .catch(() => {});
+  navigator.serviceWorker.register(swPath).then(reg => { reg.update(); }).catch(() => {});
 }
 
-// Détecte le préfixe pour retrouver le logo selon la profondeur de la page
-// (racine = "medias/...", sous-dossier /stocks/ = "../medias/...").
 function logoPath() {
   return location.pathname.includes("/stocks/") ? "../medias/favicon.png" : "medias/favicon.png";
 }
 
-// À appeler tout en haut de chaque page : `await requireAccess();`
+function storeRole(role) {
+  localStorage.setItem(ROLE_KEY, role.id);
+  localStorage.setItem(REM_KEY, role.remorques === "*" ? "*" : JSON.stringify(role.remorques));
+}
+
+function getStoredRole() {
+  const id = localStorage.getItem(ROLE_KEY);
+  return id ? ROLES.find(r => r.id === id) : null;
+}
+
+export function clearAccess() {
+  localStorage.removeItem(ROLE_KEY);
+  localStorage.removeItem(REM_KEY);
+}
+
 export function requireAccess() {
   return new Promise(resolve => {
-    if (localStorage.getItem(KEY) === PIN) { resolve(); return; }
+    if (getStoredRole()) { resolve(); return; }
 
     const ov = document.createElement("div");
     ov.id = "gate";
@@ -47,7 +44,7 @@ export function requireAccess() {
         <h2>FM Stocks</h2>
         <p>Accès réservé aux bénévoles</p>
         <input id="gate-pin" type="password" inputmode="numeric"
-               autocomplete="off" placeholder="Code" autofocus>
+               autocomplete="off" placeholder="Code équipe" autofocus>
         <button type="submit">Entrer</button>
         <div id="gate-err"></div>
       </form>`;
@@ -59,8 +56,9 @@ export function requireAccess() {
 
     form.addEventListener("submit", e => {
       e.preventDefault();
-      if (input.value === PIN) {
-        localStorage.setItem(KEY, PIN);
+      const role = ROLES.find(r => r.pin === input.value);
+      if (role) {
+        storeRole(role);
         ov.remove();
         resolve();
       } else {

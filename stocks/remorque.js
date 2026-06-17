@@ -4,7 +4,7 @@
 import { requireAccess } from "../auth.js";
 import { mountSync, trackWrite } from "../sync.js";
 import { db, REMORQUES } from "../firebase-config.js";
-import { toast, esc, stockStatus, mountSunToggle } from "../app.js";
+import { toast, esc, stockStatus, mountSunToggle, canEdit } from "../app.js";
 import {
   ref, onValue, update, remove, push, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
@@ -111,6 +111,18 @@ export async function initRemorque(remId) {
   document.title = `${remorque.nom} — FM Stocks`;
   document.getElementById("titre").textContent = remorque.nom;
 
+  const editable = canEdit(remId);
+  if (!editable) {
+    document.getElementById("btn-add").style.display = "none";
+    document.getElementById("btn-inv").style.display = "none";
+    // Inject a read-only notice below the header
+    const notice = document.createElement("p");
+    notice.className = "muted center";
+    notice.style.cssText = "padding:8px 16px;margin:0;background:var(--surface);border-bottom:1px solid var(--border)";
+    notice.textContent = "👁 Lecture seule — ton équipe ne gère pas cette remorque";
+    document.querySelector("main").prepend(notice);
+  }
+
   let articles = {};   // catalogue {id: article}
   let stock = {};      // stock de cette remorque {articleId: {...}}
 
@@ -171,23 +183,25 @@ export async function initRemorque(remId) {
             <div class="nom">${esc(a.nom)}</div>
             <div class="sub">${esc(sub) || "&nbsp;"}</div>
           </div>
-          <div class="qte" data-act="qty" title="Saisir une quantité" style="cursor:pointer">${s.qte ?? 0}</div>
-          <div class="row-actions">
+          <div class="qte"${editable ? ` data-act="qty" title="Saisir une quantité" style="cursor:pointer"` : ""}>${s.qte ?? 0}</div>
+          ${editable ? `<div class="row-actions">
             <button class="icon minus" data-act="minus" title="Sortie -1">−</button>
             <button class="icon plus" data-act="plus" title="Entrée +1">+</button>
             <button class="ghost" data-act="edit" title="Réglages">⚙</button>
-          </div>
+          </div>` : ""}
         </div>`;
     }
     listEl.innerHTML = html;
 
-    listEl.querySelectorAll(".article-row").forEach(row => {
-      const id = row.dataset.id;
-      row.querySelector('[data-act="plus"]').addEventListener("click", () => adjust(id, +1));
-      row.querySelector('[data-act="minus"]').addEventListener("click", () => adjust(id, -1));
-      row.querySelector('[data-act="edit"]').addEventListener("click", () => openEdit(id));
-      row.querySelector('[data-act="qty"]').addEventListener("click", () => openQuick(id));
-    });
+    if (editable) {
+      listEl.querySelectorAll(".article-row").forEach(row => {
+        const id = row.dataset.id;
+        row.querySelector('[data-act="plus"]').addEventListener("click", () => adjust(id, +1));
+        row.querySelector('[data-act="minus"]').addEventListener("click", () => adjust(id, -1));
+        row.querySelector('[data-act="edit"]').addEventListener("click", () => openEdit(id));
+        row.querySelector('[data-act="qty"]').addEventListener("click", () => openQuick(id));
+      });
+    }
   }
 
   // ============ Mouvement rapide (quantité libre) ============

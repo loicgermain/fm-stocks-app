@@ -15,7 +15,8 @@
     <img class="brand-logo" src="medias/favicon.png" alt="Fête Médiévale">
     <h1>FM Stocks</h1>
     <button id="qui-btn" class="chip" title="Changer de bénévole">👤 …</button>
-    <a class="chip" href="admin.html" style="text-decoration:none">📚 Catalogue</a>
+    <button id="role-btn" class="chip" title="Changer de rôle / équipe">🔓 …</button>
+    <a id="nav-catalogue" class="chip" href="admin.html" style="text-decoration:none">📚 Catalogue</a>
   </header>
 
   <main class="wrap">
@@ -29,17 +30,17 @@
     <p class="center" style="margin-top:28px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap">
       <a class="btn secondary" href="bilan.html">📊 Bilan</a>
       <a class="btn secondary" href="historique.html">📜 Historique</a>
-      <a class="btn secondary" href="qr.html">🖨️ QR codes à imprimer</a>
+      <a class="btn secondary" id="nav-qr" href="qr.html">🖨️ QR codes à imprimer</a>
     </p>
     <p class="center muted" style="font-size:.75rem;margin-top:24px" id="version"></p>
   </main>
 
   <script type="module">
-    import { requireAccess } from "./auth.js";
+    import { requireAccess, clearAccess } from "./auth.js";
     import { mountSync } from "./sync.js";
     import { db, REMORQUES } from "./firebase-config.js";
     import * as cfg from "./firebase-config.js";   // version lue sans casser si absente
-    import { esc, stockStatus, mountSunToggle } from "./app.js";
+    import { esc, stockStatus, mountSunToggle, isAdmin, getMyRemorques } from "./app.js";
     import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
     await requireAccess();
@@ -59,6 +60,26 @@
       const q = (prompt("Ton prénom :", getQui()) || "").trim();
       if (q) { localStorage.setItem(QUI_KEY, q); renderQui(); }
     });
+
+    // --- Rôle ---
+    function renderRole() {
+      const labels = { admin: "Admin", cuisine: "Cuisine", bar: "Bar", nourriture: "Nourriture" };
+      const id = localStorage.getItem("fm-role") || "";
+      document.getElementById("role-btn").textContent = `🔓 ${labels[id] || id || "?"}`;
+    }
+    renderRole();
+    document.getElementById("role-btn").addEventListener("click", () => {
+      if (!confirm("Changer d'équipe ? Tu devras entrer un nouveau code.")) return;
+      clearAccess();
+      location.reload();
+    });
+
+    // Catalogue et QR codes visibles uniquement pour les admins
+    if (!isAdmin()) {
+      document.getElementById("nav-catalogue").style.display = "none";
+      const qr = document.getElementById("nav-qr");
+      if (qr) qr.style.display = "none";
+    }
 
     let articles = {}, stocks = {}, mouvements = {};
 
@@ -102,7 +123,9 @@
     }
 
     function renderTiles() {
-      document.getElementById("tiles").innerHTML = REMORQUES.map(r => {
+      const myRem = getMyRemorques();
+      const visible = myRem ? REMORQUES.filter(r => myRem.includes(r.id)) : REMORQUES;
+      document.getElementById("tiles").innerHTML = visible.map(r => {
         const { total, low, empty } = statsFor(r.id);
         const alerte = empty + low > 0;
         const meta = total === 0
@@ -122,7 +145,9 @@
 
     function renderAlertes() {
       const rows = [];
-      for (const r of REMORQUES) {
+      const myRem = getMyRemorques();
+      const visibleRems = myRem ? REMORQUES.filter(r => myRem.includes(r.id)) : REMORQUES;
+      for (const r of visibleRems) {
         const st = stocks[r.id] || {};
         for (const aid of Object.keys(st)) {
           const s = stockStatus(st[aid].qte, st[aid].seuilAlerte);

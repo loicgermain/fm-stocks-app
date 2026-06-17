@@ -45,6 +45,15 @@ export const REMORQUES = [
 // qui viennent s'ajouter à la liste dès qu'un article les utilise).
 export const CATEGORIES_DEFAUT = ["Boisson", "Nourriture"];
 
+// Rôles d'accès. Modifier les PIN avant de déployer.
+// remorques: "*" = accès total, sinon tableau d'ids de remorques.
+export const ROLES = [
+  { id: "admin",      label: "Admin / Logistique", pin: "1218", remorques: "*" },
+  { id: "cuisine",    label: "Cuisine",             pin: "2024", remorques: ["cuisine", "ecole"] },
+  { id: "bar",        label: "Bar",                 pin: "3035", remorques: ["chalon", "pre"] },
+  { id: "nourriture", label: "Nourriture",          pin: "4046", remorques: ["place"] },
+];
+
 // Version de l'app affichée en bas du dashboard et sur l'écran de code.
 // → garder en phase avec le numéro de CACHE dans sw.js (fm-stocks-vN).
-export const APP_VERSION = "8";
+export const APP_VERSION = "12";

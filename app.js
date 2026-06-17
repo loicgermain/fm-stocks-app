@@ -24,6 +24,21 @@ export function mountSunToggle() {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Rôle & accès ─────────────────────────────────────────────────────────────
+export function getRole()    { return localStorage.getItem("fm-role") || null; }
+export function isAdmin()    { return getRole() === "admin"; }
+export function canEdit(remId) {
+  const rem = localStorage.getItem("fm-rem");
+  if (!rem || rem === "*") return true;
+  try { return JSON.parse(rem).includes(remId); } catch { return false; }
+}
+export function getMyRemorques() {
+  const rem = localStorage.getItem("fm-rem");
+  if (!rem || rem === "*") return null; // null = toutes
+  try { return JSON.parse(rem); } catch { return []; }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Petit toast en bas d'écran
 let toastEl;
 let toastTimer;
