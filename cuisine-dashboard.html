@@ -110,8 +110,6 @@
     await requireAccess();
 
     // Cuisine = plein accès stocks, pas admin système
-    // Rediriger les non-cuisine/non-logistique vers l'accueil
-    if (getPerm() === "lecture") { location.replace("index.html"); }
 
     mountSunToggle();
     mountSync(db);

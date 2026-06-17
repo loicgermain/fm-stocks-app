@@ -8,7 +8,12 @@ if ("serviceWorker" in navigator) {
   const swPath = location.pathname.includes("/stocks/") ? "../sw.js" : "./sw.js";
   let refreshing = false;
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (refreshing) return; refreshing = true; location.reload();
+    if (refreshing) return;
+    refreshing = true;
+    const lastReload = parseInt(sessionStorage.getItem("sw-reload-ts") || "0");
+    if (Date.now() - lastReload < 5000) return;
+    sessionStorage.setItem("sw-reload-ts", String(Date.now()));
+    location.reload();
   });
   navigator.serviceWorker.register(swPath).then(reg => { reg.update(); }).catch(() => {});
 }
@@ -36,7 +41,8 @@ export function clearAccess() {
 
 export function requireAccess() {
   return new Promise(resolve => {
-    if (getStoredRole()) { resolve(); return; }
+    const existing = getStoredRole();
+    if (existing) { storeRole(existing); resolve(); return; }
 
     const ov = document.createElement("div");
     ov.id = "gate";
