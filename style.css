@@ -361,6 +361,24 @@ html[data-sun] button.secondary, html[data-sun] .btn.secondary { color: var(--te
 html[data-sun] button.ghost  { color: var(--text-dim); }
 html[data-sun] #sync { background: var(--surface); border-color: var(--border); }
 
+/* ── Barre de recherche ── */
+.search-wrap { margin-bottom: 20px; }
+.search-wrap input {
+  width: 100%; padding: 11px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1rem;
+  box-sizing: border-box;
+  transition: border-color .15s;
+}
+.search-wrap input:focus { outline: none; border-color: var(--accent); }
+.search-wrap input::placeholder { color: var(--text-dim); }
+.search-results { margin-top: 8px; }
+.search-result-card { margin-bottom: 8px; }
+.search-locs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
 /* Impression QR */
 @media print {
   body { background: #fff; color: #000; }

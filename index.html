@@ -22,6 +22,11 @@
   <main class="wrap">
     <p class="muted">Stocks des remorques frigo — Fête Médiévale de Remouchamps</p>
 
+    <div class="search-wrap">
+      <input type="search" id="search" placeholder="🔍 Rechercher un article…" autocomplete="off">
+      <div id="search-results" class="search-results"></div>
+    </div>
+
     <div class="grid" id="tiles"></div>
 
     <h2>Alertes</h2>
@@ -102,7 +107,39 @@
     function render() {
       renderTiles();
       renderAlertes();
+      renderSearch(document.getElementById("search").value);
     }
+
+    function renderSearch(q) {
+      const el = document.getElementById("search-results");
+      if (!q.trim()) { el.innerHTML = ""; return; }
+      const lq = q.toLowerCase();
+      const matches = Object.entries(articles)
+        .filter(([, a]) => (a.nom || "").toLowerCase().includes(lq))
+        .map(([aid, a]) => {
+          const locs = REMORQUES.flatMap(r => {
+            const sv = (stocks[r.id] || {})[aid];
+            if (!sv) return [];
+            const qte = Number(sv.qte) || 0;
+            return [{ nom: r.nom, qte, s: stockStatus(qte, sv.seuilAlerte) }];
+          });
+          return { nom: a.nom, locs };
+        })
+        .filter(m => m.locs.length > 0);
+      if (!matches.length) {
+        el.innerHTML = `<p class="muted" style="margin:8px 0">Aucun article trouvé.</p>`;
+        return;
+      }
+      el.innerHTML = matches.map(m => `
+        <div class="card search-result-card">
+          <strong>${esc(m.nom)}</strong>
+          <div class="search-locs">
+            ${m.locs.map(l => `<span class="badge ${l.s}">${esc(l.nom)}&nbsp;·&nbsp;${l.qte}</span>`).join("")}
+          </div>
+        </div>`).join("");
+    }
+
+    document.getElementById("search").addEventListener("input", e => renderSearch(e.target.value));
 
     function statsFor(remId) {
       const st = stocks[remId] || {};
