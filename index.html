@@ -36,13 +36,14 @@
   <script type="module">
     import { requireAccess } from "./auth.js";
     import { mountSync } from "./sync.js";
-    import { db, REMORQUES, APP_VERSION } from "./firebase-config.js";
+    import { db, REMORQUES } from "./firebase-config.js";
+    import * as cfg from "./firebase-config.js";   // version lue sans casser si absente
     import { esc, stockStatus } from "./app.js";
     import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
     await requireAccess();
     mountSync(db);
-    document.getElementById("version").textContent = "FM Stocks · version " + APP_VERSION;
+    document.getElementById("version").textContent = "FM Stocks · version " + (cfg.APP_VERSION || "?");
 
     let articles = {};
     let stocks = {};

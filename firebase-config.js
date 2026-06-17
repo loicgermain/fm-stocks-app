@@ -47,4 +47,4 @@ export const CATEGORIES_DEFAUT = ["Boisson", "Nourriture"];
 
 // Version de l'app affichée en bas du dashboard et sur l'écran de code.
 // → garder en phase avec le numéro de CACHE dans sw.js (fm-stocks-vN).
-export const APP_VERSION = "7";
+export const APP_VERSION = "8";
