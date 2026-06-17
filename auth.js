@@ -13,7 +13,19 @@ const KEY = "fm-unlocked";     // mémorise le déverrouillage sur l'appareil
 // sw.js est à la racine du dépôt ; on adapte le chemin selon la profondeur.
 if ("serviceWorker" in navigator) {
   const swPath = location.pathname.includes("/stocks/") ? "../sw.js" : "./sw.js";
-  navigator.serviceWorker.register(swPath).catch(() => {});
+
+  // Recharge automatiquement la page quand une nouvelle version prend la main,
+  // pour que les bénévoles aient toujours la dernière version sans manip.
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing) return;
+    refreshing = true;
+    location.reload();
+  });
+
+  navigator.serviceWorker.register(swPath)
+    .then(reg => { reg.update(); })   // vérifie une mise à jour à chaque ouverture
+    .catch(() => {});
 }
 
 // Détecte le préfixe pour retrouver le logo selon la profondeur de la page
