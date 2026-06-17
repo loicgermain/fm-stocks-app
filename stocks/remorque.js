@@ -4,7 +4,7 @@
 import { requireAccess } from "../auth.js";
 import { mountSync, trackWrite } from "../sync.js";
 import { db, REMORQUES } from "../firebase-config.js";
-import { toast, esc, stockStatus, mountSunToggle, canEdit } from "../app.js";
+import { toast, esc, stockStatus, mountSunToggle, getPerm } from "../app.js";
 import {
   ref, onValue, update, remove, push, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
@@ -111,15 +111,20 @@ export async function initRemorque(remId) {
   document.title = `${remorque.nom} — FM Stocks`;
   document.getElementById("titre").textContent = remorque.nom;
 
-  const editable = canEdit(remId);
-  if (!editable) {
+  const perm = getPerm(); // "admin" | "sortie" | "lecture"
+  if (perm !== "admin") {
     document.getElementById("btn-add").style.display = "none";
     document.getElementById("btn-inv").style.display = "none";
-    // Inject a read-only notice below the header
+  }
+  if (perm === "sortie") {
+    // Cache le bouton + Entrée dans la modale quantité libre
+    document.getElementById("quick-in").style.display = "none";
+  }
+  if (perm === "lecture") {
     const notice = document.createElement("p");
     notice.className = "muted center";
     notice.style.cssText = "padding:8px 16px;margin:0;background:var(--surface);border-bottom:1px solid var(--border)";
-    notice.textContent = "👁 Lecture seule — ton équipe ne gère pas cette remorque";
+    notice.textContent = "👁 Lecture seule";
     document.querySelector("main").prepend(notice);
   }
 
@@ -183,23 +188,27 @@ export async function initRemorque(remId) {
             <div class="nom">${esc(a.nom)}</div>
             <div class="sub">${esc(sub) || "&nbsp;"}</div>
           </div>
-          <div class="qte"${editable ? ` data-act="qty" title="Saisir une quantité" style="cursor:pointer"` : ""}>${s.qte ?? 0}</div>
-          ${editable ? `<div class="row-actions">
+          <div class="qte"${perm !== "lecture" ? ` data-act="qty" title="Saisir une quantité" style="cursor:pointer"` : ""}>${s.qte ?? 0}</div>
+          ${perm === "admin" ? `<div class="row-actions">
             <button class="icon minus" data-act="minus" title="Sortie -1">−</button>
             <button class="icon plus" data-act="plus" title="Entrée +1">+</button>
             <button class="ghost" data-act="edit" title="Réglages">⚙</button>
+          </div>` : perm === "sortie" ? `<div class="row-actions">
+            <button class="icon minus" data-act="minus" title="Sortie">−</button>
           </div>` : ""}
         </div>`;
     }
     listEl.innerHTML = html;
 
-    if (editable) {
+    if (perm !== "lecture") {
       listEl.querySelectorAll(".article-row").forEach(row => {
         const id = row.dataset.id;
-        row.querySelector('[data-act="plus"]').addEventListener("click", () => adjust(id, +1));
-        row.querySelector('[data-act="minus"]').addEventListener("click", () => adjust(id, -1));
-        row.querySelector('[data-act="edit"]').addEventListener("click", () => openEdit(id));
-        row.querySelector('[data-act="qty"]').addEventListener("click", () => openQuick(id));
+        row.querySelector('[data-act="minus"]')?.addEventListener("click", () => adjust(id, -1));
+        row.querySelector('[data-act="qty"]')?.addEventListener("click", () => openQuick(id));
+        if (perm === "admin") {
+          row.querySelector('[data-act="plus"]')?.addEventListener("click", () => adjust(id, +1));
+          row.querySelector('[data-act="edit"]')?.addEventListener("click", () => openEdit(id));
+        }
       });
     }
   }

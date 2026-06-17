@@ -25,18 +25,11 @@ export function mountSunToggle() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Rôle & accès ─────────────────────────────────────────────────────────────
-export function getRole()    { return localStorage.getItem("fm-role") || null; }
-export function isAdmin()    { return getRole() === "admin"; }
-export function canEdit(remId) {
-  const rem = localStorage.getItem("fm-rem");
-  if (!rem || rem === "*") return true;
-  try { return JSON.parse(rem).includes(remId); } catch { return false; }
-}
-export function getMyRemorques() {
-  const rem = localStorage.getItem("fm-rem");
-  if (!rem || rem === "*") return null; // null = toutes
-  try { return JSON.parse(rem); } catch { return []; }
-}
+// perm: "admin" | "sortie" | "lecture"
+export function getPerm()       { return localStorage.getItem("fm-perm") || "lecture"; }
+export function isAdmin()       { return getPerm() === "admin"; }
+export function canEdit()       { return getPerm() !== "lecture"; } // admin + sortie
+export function getMyRemorques(){ return null; } // tous les rôles voient toutes les remorques
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Petit toast en bas d'écran

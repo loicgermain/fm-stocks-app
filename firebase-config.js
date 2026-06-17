@@ -46,12 +46,13 @@ export const REMORQUES = [
 export const CATEGORIES_DEFAUT = ["Boisson", "Nourriture"];
 
 // Rôles d'accès. Modifier les PIN avant de déployer.
-// remorques: "*" = accès total, sinon tableau d'ids de remorques.
+// perm: "admin"   → accès total
+//       "sortie"  → lecture + enregistrer des sorties (postes bar/nourriture)
+//       "lecture" → lecture seule (cuisine récap)
 export const ROLES = [
-  { id: "admin",      label: "Admin / Logistique", pin: "1218", remorques: "*" },
-  { id: "cuisine",    label: "Cuisine",             pin: "2024", remorques: ["cuisine", "ecole"] },
-  { id: "bar",        label: "Bar",                 pin: "3035", remorques: ["chalon", "pre"] },
-  { id: "nourriture", label: "Nourriture",          pin: "4046", remorques: ["place"] },
+  { id: "logistique", label: "Logistique", pin: "1218", perm: "admin"   },
+  { id: "poste",      label: "Poste",      pin: "2024", perm: "sortie"  },
+  { id: "cuisine",    label: "Cuisine",    pin: "3035", perm: "lecture" },
 ];
 
 // Version de l'app affichée en bas du dashboard et sur l'écran de code.

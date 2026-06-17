@@ -19,7 +19,8 @@ function logoPath() {
 
 function storeRole(role) {
   localStorage.setItem(ROLE_KEY, role.id);
-  localStorage.setItem(REM_KEY, role.remorques === "*" ? "*" : JSON.stringify(role.remorques));
+  localStorage.setItem("fm-perm", role.perm);
+  localStorage.removeItem(REM_KEY); // plus utilisé
 }
 
 function getStoredRole() {
@@ -30,6 +31,7 @@ function getStoredRole() {
 export function clearAccess() {
   localStorage.removeItem(ROLE_KEY);
   localStorage.removeItem(REM_KEY);
+  localStorage.removeItem("fm-perm");
 }
 
 export function requireAccess() {
