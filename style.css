@@ -1,0 +1,270 @@
+/* style.css — styles partagés FM Stocks (mobile-first) */
+
+/* Palette officielle Fête Médiévale :
+   Orange #F47D0D · Mauve #831F82 · Mauve foncé #6E1A4E */
+:root {
+  --bg: #1c0a1a;          /* mauve très foncé */
+  --surface: #2e0f29;     /* mauve foncé */
+  --surface-2: #45163d;
+  --border: #6E1A4E;      /* mauve 2 (charte) */
+  --text: #f6ecef;
+  --text-dim: #c4a8bc;
+  --accent: #F47D0D;      /* orange (charte) */
+  --accent-dark: #c4640a;
+  --mauve: #831F82;       /* mauve (charte) */
+  --ok: #4c9a5a;
+  --warn: #F47D0D;
+  --danger: #d23b6e;
+  --radius: 10px;
+  --shadow: 0 2px 8px rgba(0,0,0,.45);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+a { color: var(--accent); }
+
+.wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* En-tête */
+header.app {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border-bottom: 2px solid var(--accent-dark);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+header.app h1 {
+  font-size: 1.15rem;
+  margin: 0;
+  flex: 1;
+}
+/* Pastille claire pour le logo (dragon noir sur fond clair) */
+.brand-logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--accent);
+  object-fit: contain;
+  padding: 3px;
+  flex-shrink: 0;
+}
+header.app .back {
+  text-decoration: none;
+  color: var(--text-dim);
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+h2 { font-size: 1.05rem; margin: 1.4em 0 .6em; color: var(--accent); }
+
+/* Cartes / liste */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+/* Tuile remorque (dashboard) */
+.remorque-tile {
+  display: block;
+  text-decoration: none;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+.remorque-tile .nom { font-size: 1.2rem; font-weight: 600; }
+.remorque-tile .meta { color: var(--text-dim); font-size: .85rem; margin-top: 6px; }
+.remorque-tile.alerte { border-left-color: var(--danger); }
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 600;
+}
+.badge.ok { background: rgba(76,154,90,.2); color: #8fdc9e; }
+.badge.warn { background: rgba(244,125,13,.2); color: #f7a854; }
+.badge.danger { background: rgba(210,59,110,.25); color: #f08aae; }
+
+/* Lignes d'article (page remorque) */
+.article-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.article-row:last-child { border-bottom: none; }
+.article-row .info { flex: 1; min-width: 0; }
+.article-row .nom { font-weight: 600; }
+.article-row .sub { color: var(--text-dim); font-size: .8rem; }
+.article-row .qte {
+  font-size: 1.4rem;
+  font-weight: 700;
+  min-width: 56px;
+  text-align: right;
+}
+.article-row.low .qte { color: var(--warn); }
+.article-row.empty .qte { color: var(--danger); }
+
+/* Boutons */
+button, .btn {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  background: var(--accent);
+  color: #1a1410;
+  font-weight: 600;
+}
+button:active, .btn:active { transform: translateY(1px); }
+button.secondary, .btn.secondary {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+button.ghost {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+button.icon {
+  width: 40px; height: 40px;
+  padding: 0;
+  font-size: 1.3rem;
+  border-radius: 50%;
+}
+button.plus { background: var(--ok); color: #fff; }
+button.minus { background: var(--danger); color: #fff; }
+button:disabled { opacity: .4; cursor: not-allowed; }
+
+.row-actions { display: flex; gap: 8px; align-items: center; }
+
+/* Formulaires */
+label { display: block; font-size: .85rem; color: var(--text-dim); margin: 10px 0 4px; }
+input, select, textarea {
+  width: 100%;
+  font: inherit;
+  padding: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+}
+textarea { resize: vertical; min-height: 60px; }
+.field-inline { display: flex; gap: 8px; }
+.field-inline > * { flex: 1; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); }
+th { color: var(--text-dim); font-size: .8rem; font-weight: 600; }
+
+.muted { color: var(--text-dim); }
+.center { text-align: center; }
+.empty-state { text-align: center; color: var(--text-dim); padding: 40px 16px; }
+
+/* Modale simple */
+.modal-bg {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.6);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 50;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--shadow);
+}
+.modal h3 { margin: 0 0 10px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+/* Toast */
+#toast {
+  position: fixed; bottom: 20px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transition: opacity .2s;
+  pointer-events: none;
+  z-index: 100;
+}
+#toast.show { opacity: 1; }
+
+/* Écran de verrouillage (PIN) */
+#gate {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200; padding: 24px;
+}
+#gate-form {
+  text-align: center;
+  width: 100%; max-width: 320px;
+}
+#gate-form img {
+  width: 90px; height: 90px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--accent);
+  padding: 8px; object-fit: contain;
+}
+#gate-form h2 { color: var(--accent); margin: 16px 0 4px; }
+#gate-form p { color: var(--text-dim); margin: 0 0 20px; }
+#gate-form input { text-align: center; font-size: 1.4rem; letter-spacing: .3em; }
+#gate-form button { width: 100%; margin-top: 12px; padding: 12px; }
+#gate-err { color: var(--danger); margin-top: 10px; min-height: 1.2em; }
+
+/* Impression QR */
+@media print {
+  body { background: #fff; color: #000; }
+  .no-print { display: none !important; }
+  .qr-card { break-inside: avoid; border: 1px solid #000; }
+}

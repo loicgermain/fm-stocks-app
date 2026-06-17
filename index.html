@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FM Stocks — Fête Médiévale</title>
+  <link rel="icon" href="medias/favicon.png">
+  <link rel="apple-touch-icon" href="medias/favicon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#F47D0D">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app">
+    <img class="brand-logo" src="medias/favicon.png" alt="Fête Médiévale">
+    <h1>FM Stocks</h1>
+    <a class="btn secondary" href="admin.html">Catalogue</a>
+  </header>
+
+  <main class="wrap">
+    <p class="muted">Stocks des remorques frigo — Fête Médiévale de Remouchamps</p>
+
+    <div class="grid" id="tiles"></div>
+
+    <h2>Alertes</h2>
+    <div id="alertes"><p class="muted">Chargement…</p></div>
+
+    <p class="center" style="margin-top:28px">
+      <a class="btn secondary" href="qr.html">🖨️ QR codes à imprimer</a>
+    </p>
+  </main>
+
+  <script type="module">
+    import { requireAccess } from "./auth.js";
+    import { db, REMORQUES } from "./firebase-config.js";
+    import { esc, stockStatus } from "./app.js";
+    import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    await requireAccess();
+
+    let articles = {};
+    let stocks = {};
+
+    onValue(ref(db, "articles"), s => { articles = s.val() || {}; render(); });
+    onValue(ref(db, "stocks"),   s => { stocks   = s.val() || {}; render(); });
+
+    function render() {
+      renderTiles();
+      renderAlertes();
+    }
+
+    function statsFor(remId) {
+      const st = stocks[remId] || {};
+      let total = 0, low = 0, empty = 0;
+      for (const aid of Object.keys(st)) {
+        total++;
+        const s = stockStatus(st[aid].qte, st[aid].seuilAlerte);
+        if (s === "empty") empty++;
+        else if (s === "low") low++;
+      }
+      return { total, low, empty };
+    }
+
+    function renderTiles() {
+      document.getElementById("tiles").innerHTML = REMORQUES.map(r => {
+        const { total, low, empty } = statsFor(r.id);
+        const alerte = empty + low > 0;
+        const meta = total === 0
+          ? "Aucun stock"
+          : `${total} article${total > 1 ? "s" : ""}` +
+            (empty ? ` · ${empty} vide${empty > 1 ? "s" : ""}` : "") +
+            (low ? ` · ${low} bas` : "");
+        return `
+          <a class="remorque-tile ${alerte ? "alerte" : ""}" href="stocks/${r.id}.html">
+            <div class="nom">${esc(r.nom)}</div>
+            <div class="meta">${meta}</div>
+          </a>`;
+      }).join("");
+    }
+
+    function renderAlertes() {
+      const rows = [];
+      for (const r of REMORQUES) {
+        const st = stocks[r.id] || {};
+        for (const aid of Object.keys(st)) {
+          const s = stockStatus(st[aid].qte, st[aid].seuilAlerte);
+          if (s === "ok") continue;
+          const nom = articles[aid]?.nom || aid;
+          rows.push({ rem: r, nom, qte: st[aid].qte || 0, s });
+        }
+      }
+      const el = document.getElementById("alertes");
+      if (!rows.length) {
+        el.innerHTML = `<p class="muted">✅ Aucune alerte, tous les stocks sont au-dessus du seuil.</p>`;
+        return;
+      }
+      rows.sort((a, b) => (a.s === "empty" ? -1 : 1) - (b.s === "empty" ? -1 : 1));
+      el.innerHTML = rows.map(x => `
+        <div class="card" style="display:flex;align-items:center;gap:10px">
+          <span class="badge ${x.s === "empty" ? "danger" : "warn"}">
+            ${x.s === "empty" ? "VIDE" : "BAS"}
+          </span>
+          <div style="flex:1">
+            <strong>${esc(x.nom)}</strong>
+            <div class="muted" style="font-size:.85rem">${esc(x.rem.nom)} — reste ${x.qte}</div>
+          </div>
+          <a class="btn secondary" href="stocks/${x.rem.id}.html">Voir</a>
+        </div>`).join("");
+    }
+  </script>
+</body>
+</html>

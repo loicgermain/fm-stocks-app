@@ -1,0 +1,18 @@
+{
+  "name": "FM Stocks — Fête Médiévale",
+  "short_name": "FM Stocks",
+  "description": "Gestion des stocks des remorques frigo de la Fête Médiévale de Remouchamps",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1c0a1a",
+  "theme_color": "#F47D0D",
+  "icons": [
+    {
+      "src": "medias/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

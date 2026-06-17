@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin catalogue — FM Stocks</title>
+  <link rel="icon" href="medias/favicon.png">
+  <link rel="apple-touch-icon" href="medias/favicon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#F47D0D">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app">
+    <a class="back" href="index.html" title="Retour">‹</a>
+    <h1>Catalogue d'articles</h1>
+    <button id="btn-new">+ Article</button>
+  </header>
+
+  <main class="wrap">
+    <div id="list"></div>
+  </main>
+
+  <!-- Modale création / édition -->
+  <div class="modal-bg" id="modal">
+    <form class="modal" id="form">
+      <h3 id="modal-title">Nouvel article</h3>
+      <input type="hidden" id="f-id">
+
+      <label for="f-nom">Nom *</label>
+      <input id="f-nom" required placeholder="ex. Coca-Cola 33cl">
+
+      <label for="f-categorie">Catégorie</label>
+      <input id="f-categorie" list="categories" placeholder="ex. Boissons">
+      <datalist id="categories"></datalist>
+
+      <div class="field-inline">
+        <div>
+          <label for="f-unite">Unité</label>
+          <input id="f-unite" placeholder="ex. pièce, kg, L">
+        </div>
+        <div>
+          <label for="f-seuil">Seuil d'alerte par défaut</label>
+          <input id="f-seuil" type="number" min="0" step="1" value="0">
+        </div>
+      </div>
+
+      <label for="f-cond">Conditionnements (un par ligne)</label>
+      <textarea id="f-cond" placeholder="Pack de 24&#10;Bouteille&#10;Palette"></textarea>
+
+      <div class="modal-actions">
+        <button type="button" class="ghost" id="btn-delete" style="margin-right:auto;display:none">Supprimer</button>
+        <button type="button" class="secondary" id="btn-cancel">Annuler</button>
+        <button type="submit">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+
+  <script type="module">
+    import { requireAccess } from "./auth.js";
+    import { db } from "./firebase-config.js";
+    import { toast, esc } from "./app.js";
+    import {
+      ref, onValue, push, update, remove
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    await requireAccess();
+
+    const listEl = document.getElementById("list");
+    const modal = document.getElementById("modal");
+    const form = document.getElementById("form");
+    let articles = {}; // cache local {id: article}
+
+    // --- Lecture temps réel du catalogue ---
+    onValue(ref(db, "articles"), snap => {
+      articles = snap.val() || {};
+      render();
+      renderCategories();
+    });
+
+    function render() {
+      const ids = Object.keys(articles);
+      if (!ids.length) {
+        listEl.innerHTML = `<div class="empty-state">Aucun article.<br>Clique sur « + Article » pour commencer.</div>`;
+        return;
+      }
+      // Tri par catégorie puis nom
+      ids.sort((a, b) => {
+        const A = articles[a], B = articles[b];
+        return (A.categorie || "").localeCompare(B.categorie || "")
+            || (A.nom || "").localeCompare(B.nom || "");
+      });
+
+      let html = "", lastCat = null;
+      for (const id of ids) {
+        const a = articles[id];
+        const cat = a.categorie || "Sans catégorie";
+        if (cat !== lastCat) { html += `<h2>${esc(cat)}</h2>`; lastCat = cat; }
+        const conds = (a.conditionnements || []).join(", ");
+        html += `
+          <div class="card" data-id="${id}" style="cursor:pointer">
+            <div class="nom" style="font-weight:600">${esc(a.nom)}</div>
+            <div class="sub muted" style="font-size:.85rem">
+              ${esc(a.unite || "—")}
+              ${conds ? " · " + esc(conds) : ""}
+              ${a.seuilAlerteDefaut ? ` · seuil ${a.seuilAlerteDefaut}` : ""}
+            </div>
+          </div>`;
+      }
+      listEl.innerHTML = html;
+      listEl.querySelectorAll("[data-id]").forEach(el =>
+        el.addEventListener("click", () => openEdit(el.dataset.id)));
+    }
+
+    function renderCategories() {
+      const cats = [...new Set(Object.values(articles)
+        .map(a => a.categorie).filter(Boolean))].sort();
+      document.getElementById("categories").innerHTML =
+        cats.map(c => `<option value="${esc(c)}">`).join("");
+    }
+
+    // --- Modale ---
+    function openModal() { modal.classList.add("open"); }
+    function closeModal() { modal.classList.remove("open"); form.reset(); }
+
+    function openNew() {
+      form.reset();
+      document.getElementById("f-id").value = "";
+      document.getElementById("modal-title").textContent = "Nouvel article";
+      document.getElementById("btn-delete").style.display = "none";
+      openModal();
+    }
+
+    function openEdit(id) {
+      const a = articles[id];
+      if (!a) return;
+      document.getElementById("f-id").value = id;
+      document.getElementById("f-nom").value = a.nom || "";
+      document.getElementById("f-categorie").value = a.categorie || "";
+      document.getElementById("f-unite").value = a.unite || "";
+      document.getElementById("f-seuil").value = a.seuilAlerteDefaut || 0;
+      document.getElementById("f-cond").value = (a.conditionnements || []).join("\n");
+      document.getElementById("modal-title").textContent = "Modifier l'article";
+      document.getElementById("btn-delete").style.display = "inline-block";
+      openModal();
+    }
+
+    document.getElementById("btn-new").addEventListener("click", openNew);
+    document.getElementById("btn-cancel").addEventListener("click", closeModal);
+    modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });
+
+    form.addEventListener("submit", async e => {
+      e.preventDefault();
+      const id = document.getElementById("f-id").value;
+      const data = {
+        nom: document.getElementById("f-nom").value.trim(),
+        categorie: document.getElementById("f-categorie").value.trim(),
+        unite: document.getElementById("f-unite").value.trim(),
+        seuilAlerteDefaut: Number(document.getElementById("f-seuil").value) || 0,
+        conditionnements: document.getElementById("f-cond").value
+          .split("\n").map(s => s.trim()).filter(Boolean)
+      };
+      if (!data.nom) return;
+      try {
+        if (id) {
+          await update(ref(db, "articles/" + id), data);
+          toast("Article modifié");
+        } else {
+          await push(ref(db, "articles"), data);
+          toast("Article ajouté");
+        }
+        closeModal();
+      } catch (err) {
+        toast("Erreur : " + err.message);
+      }
+    });
+
+    document.getElementById("btn-delete").addEventListener("click", async () => {
+      const id = document.getElementById("f-id").value;
+      if (!id) return;
+      if (!confirm("Supprimer cet article du catalogue ?\n(Les stocks existants ne sont pas effacés.)")) return;
+      try {
+        await remove(ref(db, "articles/" + id));
+        toast("Article supprimé");
+        closeModal();
+      } catch (err) {
+        toast("Erreur : " + err.message);
+      }
+    });
+  </script>
+</body>
+</html>
