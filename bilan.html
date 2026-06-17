@@ -27,9 +27,21 @@
     <div id="table"></div>
 
     <h2>Zone admin</h2>
-    <div class="card">
-      <p class="muted" style="margin-top:0">Remet toutes les quantités à 0 (le catalogue et les articles des remorques sont conservés). À faire en fin de fête.</p>
-      <button id="reset-stocks" class="minus">🧹 Remettre tous les stocks à 0</button>
+    <div class="card" style="display:flex;flex-direction:column;gap:14px">
+      <div>
+        <p class="muted" style="margin-top:0;margin-bottom:8px">Remet toutes les quantités à 0 dans les remorques (catalogue et seuils conservés).</p>
+        <button id="reset-stocks" class="minus">🧹 Stocks → zéro</button>
+      </div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:0">
+      <div>
+        <p class="muted" style="margin-top:0;margin-bottom:8px">Supprime tout l'historique des mouvements (entrées / sorties).</p>
+        <button id="reset-mvts" class="minus">🧹 Mouvements → zéro</button>
+      </div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:0">
+      <div>
+        <p class="muted" style="margin-top:0;margin-bottom:8px">Remet les stocks à 0 <strong>et</strong> vide l'historique. À faire en fin de fête.</p>
+        <button id="reset-tout" style="background:var(--mauve);color:#fff;font-weight:700">⚠️ Tout remettre à zéro</button>
+      </div>
     </div>
   </main>
 
@@ -38,7 +50,7 @@
     import { mountSync, trackWrite } from "./sync.js";
     import { db, REMORQUES } from "./firebase-config.js";
     import { esc, toast, mountSunToggle } from "./app.js";
-    import { ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { ref, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
     await requireAccess();
     mountSunToggle();
@@ -149,20 +161,49 @@
       downloadCSV(`mouvements_${dstr()}.csv`, rows);
     });
 
-    // --- Remise à zéro des stocks (admin 1218) ---
-    document.getElementById("reset-stocks").addEventListener("click", async () => {
-      const code = prompt("Code admin pour remettre tous les stocks à 0 :");
-      if (code === null) return;
-      if (code !== "1218") { toast("Code incorrect"); return; }
-      if (!confirm("Remettre TOUTES les quantités à 0 dans toutes les remorques ?")) return;
+    // --- Remises à zéro (admin 1218) ---
+    const ADMIN_CODE = "1218";
+
+    async function resetStocks() {
       const updates = {};
       for (const r of REMORQUES) {
         const st = stocks[r.id] || {};
         for (const id of Object.keys(st)) updates[`stocks/${r.id}/${id}/qte`] = 0;
       }
+      await trackWrite(update(ref(db), updates));
+    }
+
+    async function resetMouvements() {
+      await trackWrite(remove(ref(db, "mouvements")));
+    }
+
+    document.getElementById("reset-stocks").addEventListener("click", async () => {
+      const code = prompt("Code admin pour remettre tous les stocks à 0 :");
+      if (code === null) return;
+      if (code !== ADMIN_CODE) { toast("Code incorrect"); return; }
+      if (!confirm("Remettre TOUTES les quantités à 0 dans toutes les remorques ?")) return;
+      try { await resetStocks(); toast("Stocks remis à 0"); }
+      catch (err) { toast("Erreur : " + err.message); }
+    });
+
+    document.getElementById("reset-mvts").addEventListener("click", async () => {
+      const code = prompt("Code admin pour vider l'historique des mouvements :");
+      if (code === null) return;
+      if (code !== ADMIN_CODE) { toast("Code incorrect"); return; }
+      if (!confirm("Supprimer TOUT l'historique des mouvements (entrées/sorties) ?")) return;
+      try { await resetMouvements(); toast("Historique vidé"); }
+      catch (err) { toast("Erreur : " + err.message); }
+    });
+
+    document.getElementById("reset-tout").addEventListener("click", async () => {
+      const code = prompt("Code admin pour tout remettre à zéro :");
+      if (code === null) return;
+      if (code !== ADMIN_CODE) { toast("Code incorrect"); return; }
+      if (!confirm("Remettre TOUS les stocks à 0 ET vider l'historique des mouvements ?")) return;
       try {
-        await trackWrite(update(ref(db), updates));
-        toast("Stocks remis à 0");
+        await resetStocks();
+        await resetMouvements();
+        toast("Stocks et mouvements remis à zéro");
       } catch (err) { toast("Erreur : " + err.message); }
     });
   </script>
