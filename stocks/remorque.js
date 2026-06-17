@@ -2,6 +2,7 @@
 // Chaque page (cuisine.html, ecole.html, …) appelle initRemorque("<id>").
 
 import { requireAccess } from "../auth.js";
+import { mountSync, trackWrite } from "../sync.js";
 import { db, REMORQUES } from "../firebase-config.js";
 import { toast, esc, stockStatus } from "../app.js";
 import {
@@ -74,6 +75,7 @@ export async function initRemorque(remId) {
 
   await requireAccess();
   injectMarkup();
+  mountSync(db);
   document.title = `${remorque.nom} — FM Stocks`;
   document.getElementById("titre").textContent = remorque.nom;
 
@@ -162,7 +164,7 @@ export async function initRemorque(remId) {
     if (next === cur) return; // déjà à 0 sur un -1
     const qui = ensureQui();
     try {
-      await update(ref(db, `stocks/${remId}/${id}`), { qte: next });
+      await trackWrite(update(ref(db, `stocks/${remId}/${id}`), { qte: next }));
       await push(ref(db, "mouvements"), {
         remorqueId: remId,
         articleId: id,
@@ -211,7 +213,7 @@ export async function initRemorque(remId) {
       seuilAlerte: Number(document.getElementById("edit-seuil").value) || 0
     };
     try {
-      await update(ref(db, `stocks/${remId}/${editId}`), data);
+      await trackWrite(update(ref(db, `stocks/${remId}/${editId}`), data));
       // Mouvement d'ajustement si la quantité a changé
       if (newQte !== prevQte) {
         const qui = getQui();
@@ -232,7 +234,7 @@ export async function initRemorque(remId) {
     if (!editId) return;
     if (!confirm("Retirer cet article de la remorque ?")) return;
     try {
-      await remove(ref(db, `stocks/${remId}/${editId}`));
+      await trackWrite(remove(ref(db, `stocks/${remId}/${editId}`)));
       toast("Article retiré");
       closeEdit();
     } catch (err) { toast("Erreur : " + err.message); }
@@ -283,7 +285,7 @@ export async function initRemorque(remId) {
       seuilAlerte: Number(document.getElementById("add-seuil").value) || 0
     };
     try {
-      await update(ref(db, `stocks/${remId}/${id}`), data);
+      await trackWrite(update(ref(db, `stocks/${remId}/${id}`), data));
       if (qte > 0) {
         const qui = getQui();
         await push(ref(db, "mouvements"), {

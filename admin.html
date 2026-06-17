@@ -58,6 +58,7 @@
 
   <script type="module">
     import { requireAccess } from "./auth.js";
+    import { mountSync, trackWrite } from "./sync.js";
     import { db } from "./firebase-config.js";
     import { toast, esc } from "./app.js";
     import {
@@ -65,6 +66,7 @@
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
     await requireAccess();
+    mountSync(db);
 
     const listEl = document.getElementById("list");
     const modal = document.getElementById("modal");
@@ -163,10 +165,10 @@
       if (!data.nom) return;
       try {
         if (id) {
-          await update(ref(db, "articles/" + id), data);
+          await trackWrite(update(ref(db, "articles/" + id), data));
           toast("Article modifié");
         } else {
-          await push(ref(db, "articles"), data);
+          await trackWrite(push(ref(db, "articles"), data));
           toast("Article ajouté");
         }
         closeModal();
@@ -180,7 +182,7 @@
       if (!id) return;
       if (!confirm("Supprimer cet article du catalogue ?\n(Les stocks existants ne sont pas effacés.)")) return;
       try {
-        await remove(ref(db, "articles/" + id));
+        await trackWrite(remove(ref(db, "articles/" + id)));
         toast("Article supprimé");
         closeModal();
       } catch (err) {

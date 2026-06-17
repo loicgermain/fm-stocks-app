@@ -37,5 +37,6 @@ export const REMORQUES = [
   { id: "cuisine", nom: "Cuisine" },
   { id: "ecole",   nom: "École" },
   { id: "chalon",  nom: "Chalon" },
-  { id: "pre",     nom: "Pré" }
+  { id: "pre",     nom: "Pré" },
+  { id: "place",   nom: "Place" }
 ];

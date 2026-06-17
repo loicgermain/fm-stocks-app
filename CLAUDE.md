@@ -21,11 +21,13 @@ Clés SANS accents (les accents sont permis par Firebase mais fragiles en JS).
 /mouvements/{id}
   remorqueId, articleId, type (in/out), qte, qui, note, timestamp (serverTimestamp)
 
-## Remorques
+## Remorques (définies dans firebase-config.js → REMORQUES)
 - cuisine
 - ecole
 - chalon
 - pre
+- place
+Ajouter une remorque = 1 entrée dans REMORQUES + 1 fichier stocks/{id}.html.
 
 ## Stack
 - Vanilla HTML/CSS/JS (pas de framework)
@@ -35,6 +37,8 @@ Clés SANS accents (les accents sont permis par Firebase mais fragiles en JS).
 ## Fichiers
 - firebase-config.js : init Firebase + export `db` et `REMORQUES`
 - app.js             : utilitaires partagés (toast, esc, stockStatus, param)
+- auth.js            : verrou par code PIN partagé (requireAccess)
+- sync.js            : indicateur de synchro (mountSync, trackWrite)
 - style.css          : styles partagés (mobile-first, thème médiéval sombre)
 - database.rules.json: règles RTDB ouvertes (à publier dans la console)
 - index.html         : dashboard central + alertes

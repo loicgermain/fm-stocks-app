@@ -32,11 +32,13 @@
 
   <script type="module">
     import { requireAccess } from "./auth.js";
+    import { mountSync } from "./sync.js";
     import { db, REMORQUES } from "./firebase-config.js";
     import { esc, stockStatus } from "./app.js";
     import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
     await requireAccess();
+    mountSync(db);
 
     let articles = {};
     let stocks = {};
