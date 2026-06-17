@@ -25,11 +25,13 @@ export function mountSunToggle() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Rôle & accès ─────────────────────────────────────────────────────────────
-// perm: "admin" | "sortie" | "lecture"
+// perm: "admin" | "logistique" | "sortie" | "lecture"
 export function getPerm()       { return localStorage.getItem("fm-perm") || "lecture"; }
 export function isAdmin()       { return getPerm() === "admin"; }
-export function canEdit()       { return getPerm() !== "lecture"; } // admin + sortie
-export function getMyRemorques(){ return null; } // tous les rôles voient toutes les remorques
+// fullEdit : admin + logistique peuvent tout faire sur les stocks
+export function isFullEdit()    { const p = getPerm(); return p === "admin" || p === "logistique"; }
+export function canEdit()       { return getPerm() !== "lecture"; }
+export function getMyRemorques(){ return null; }
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Petit toast en bas d'écran

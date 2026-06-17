@@ -63,7 +63,7 @@
 
     // --- Rôle ---
     function renderRole() {
-      const labels = { logistique: "Logistique", poste: "Poste", cuisine: "Cuisine" };
+      const labels = { admin: "Admin", logistique: "Logistique", poste: "Poste", cuisine: "Cuisine" };
       const id = localStorage.getItem("fm-role") || "";
       document.getElementById("role-btn").textContent = `🔓 ${labels[id] || id || "?"}`;
     }
