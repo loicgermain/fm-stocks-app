@@ -43,8 +43,8 @@ a { color: var(--accent); }
 header.app {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: 8px;
+  padding: 10px 12px;
   background: var(--surface);
   border-bottom: 2px solid var(--accent-dark);
   position: sticky;
@@ -52,9 +52,51 @@ header.app {
   z-index: 10;
 }
 header.app h1 {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   margin: 0;
   flex: 1;
+  min-width: 0;                /* permet la troncature dans un flex */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Boutons compacts dans l'en-tête */
+header.app .chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: .8rem;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  max-width: 110px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+header.app .icon-btn {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+header.app .icon-btn.add {
+  background: var(--accent);
+  color: #1a1410;
+  border-color: var(--accent);
+  font-size: 1.6rem;
+  font-weight: 700;
 }
 /* Pastille claire pour le logo (dragon noir sur fond clair) */
 .brand-logo {

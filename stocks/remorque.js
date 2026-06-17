@@ -17,9 +17,9 @@ function injectMarkup() {
       <a class="back" href="../index.html" title="Retour">‹</a>
       <img class="brand-logo" src="../medias/favicon.png" alt="Fête Médiévale">
       <h1 id="titre">Remorque</h1>
-      <button id="qui" class="ghost" title="Changer de bénévole"></button>
-      <button id="btn-inv" class="secondary" title="Inventaire rapide">📋</button>
-      <button id="btn-add">+ Ajouter</button>
+      <button id="qui" class="chip" title="Changer de bénévole"></button>
+      <button id="btn-inv" class="icon-btn" title="Inventaire rapide">📋</button>
+      <button id="btn-add" class="icon-btn add" title="Ajouter un article">+</button>
     </header>
 
     <main class="wrap"><div id="list"></div></main>
