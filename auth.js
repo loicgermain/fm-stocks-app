@@ -9,6 +9,13 @@
 const PIN = "1516";            // <-- code partagé aux bénévoles
 const KEY = "fm-unlocked";     // mémorise le déverrouillage sur l'appareil
 
+// Enregistre le service worker (app installable + lancement hors-ligne).
+// sw.js est à la racine du dépôt ; on adapte le chemin selon la profondeur.
+if ("serviceWorker" in navigator) {
+  const swPath = location.pathname.includes("/stocks/") ? "../sw.js" : "./sw.js";
+  navigator.serviceWorker.register(swPath).catch(() => {});
+}
+
 // Détecte le préfixe pour retrouver le logo selon la profondeur de la page
 // (racine = "medias/...", sous-dossier /stocks/ = "../medias/...").
 function logoPath() {

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Historique — FM Stocks</title>
+  <link rel="icon" href="medias/favicon.png">
+  <link rel="apple-touch-icon" href="medias/favicon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#F47D0D">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app">
+    <a class="back" href="index.html" title="Retour">‹</a>
+    <h1>Historique</h1>
+  </header>
+
+  <main class="wrap">
+    <div class="field-inline" style="margin-bottom:6px">
+      <div>
+        <label for="f-rem">Remorque</label>
+        <select id="f-rem"><option value="">Toutes</option></select>
+      </div>
+      <div>
+        <label for="f-type">Type</label>
+        <select id="f-type">
+          <option value="">Tous</option>
+          <option value="in">Entrées</option>
+          <option value="out">Sorties</option>
+        </select>
+      </div>
+    </div>
+    <p class="muted" id="count" style="font-size:.85rem"></p>
+    <div id="list"></div>
+  </main>
+
+  <script type="module">
+    import { requireAccess } from "./auth.js";
+    import { mountSync } from "./sync.js";
+    import { db, REMORQUES } from "./firebase-config.js";
+    import { esc } from "./app.js";
+    import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    await requireAccess();
+    mountSync(db);
+
+    const remNom = Object.fromEntries(REMORQUES.map(r => [r.id, r.nom]));
+    document.getElementById("f-rem").innerHTML =
+      `<option value="">Toutes</option>` +
+      REMORQUES.map(r => `<option value="${r.id}">${esc(r.nom)}</option>`).join("");
+
+    let articles = {};
+    let mouvements = {};
+    onValue(ref(db, "articles"),   s => { articles   = s.val() || {}; render(); });
+    onValue(ref(db, "mouvements"), s => { mouvements = s.val() || {}; render(); });
+
+    document.getElementById("f-rem").addEventListener("change", render);
+    document.getElementById("f-type").addEventListener("change", render);
+
+    function fmtDate(ts) {
+      if (!ts) return "—";
+      return new Date(ts).toLocaleString("fr-FR", {
+        day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"
+      });
+    }
+
+    function render() {
+      const fRem = document.getElementById("f-rem").value;
+      const fType = document.getElementById("f-type").value;
+
+      let rows = Object.values(mouvements);
+      if (fRem)  rows = rows.filter(m => m.remorqueId === fRem);
+      if (fType) rows = rows.filter(m => m.type === fType);
+      // Plus récent en premier
+      rows.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+      const countEl = document.getElementById("count");
+      const listEl = document.getElementById("list");
+
+      if (!rows.length) {
+        countEl.textContent = "";
+        listEl.innerHTML = `<div class="empty-state">Aucun mouvement enregistré.</div>`;
+        return;
+      }
+      countEl.textContent = `${rows.length} mouvement${rows.length > 1 ? "s" : ""}`;
+
+      // Limite d'affichage pour rester fluide
+      const shown = rows.slice(0, 300);
+      listEl.innerHTML = shown.map(m => {
+        const nom = articles[m.articleId]?.nom || m.articleId;
+        const entree = m.type === "in";
+        return `
+          <div class="article-row">
+            <span class="badge ${entree ? "ok" : "danger"}">
+              ${entree ? "+" : "−"}${m.qte ?? ""}
+            </span>
+            <div class="info">
+              <div class="nom">${esc(nom)}</div>
+              <div class="sub">
+                ${esc(remNom[m.remorqueId] || m.remorqueId)} ·
+                ${fmtDate(m.timestamp)}
+                ${m.qui ? " · " + esc(m.qui) : ""}
+                ${m.note ? " · " + esc(m.note) : ""}
+              </div>
+            </div>
+          </div>`;
+      }).join("") +
+      (rows.length > shown.length
+        ? `<p class="muted center" style="margin-top:12px">… et ${rows.length - shown.length} plus anciens</p>`
+        : "");
+    }
+  </script>
+</body>
+</html>

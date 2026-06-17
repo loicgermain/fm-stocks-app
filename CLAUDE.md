@@ -46,6 +46,9 @@ Ajouter une remorque = 1 entrée dans REMORQUES + 1 fichier stocks/{id}.html.
 - stocks/remorque.js : logique partagée d'une page remorque (markup injecté)
 - stocks/{id}.html   : pages fines appelant initRemorque("<id>")
 - qr.html            : QR codes par remorque (URLs absolues auto), imprimable
+- historique.html    : journal des mouvements (filtres remorque/type)
+- sw.js              : service worker (PWA installable + lancement hors-ligne)
+                       → incrémenter CACHE (fm-stocks-vN) à chaque déploiement
 
 ## Charte graphique (medias/)
 - Logo : medias/favicon.png (dragon noir → affiché dans une pastille blanche)
