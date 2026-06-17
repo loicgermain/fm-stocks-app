@@ -44,3 +44,7 @@ export const REMORQUES = [
 // Catégories proposées d'office (les bénévoles peuvent en ajouter d'autres,
 // qui viennent s'ajouter à la liste dès qu'un article les utilise).
 export const CATEGORIES_DEFAUT = ["Boisson", "Nourriture"];
+
+// Version de l'app affichée en bas du dashboard et sur l'écran de code.
+// → garder en phase avec le numéro de CACHE dans sw.js (fm-stocks-vN).
+export const APP_VERSION = "7";
