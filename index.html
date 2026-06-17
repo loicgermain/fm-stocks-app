@@ -32,6 +32,9 @@
       <a class="btn secondary" href="historique.html">📜 Historique</a>
       <a class="btn secondary" id="nav-qr" href="qr.html">🖨️ QR codes à imprimer</a>
     </p>
+    <p class="center" id="nav-cuisine-back" style="margin-top:12px;display:none">
+      <a class="btn" href="cuisine-dashboard.html">🍳 Dashboard Cuisine</a>
+    </p>
     <p class="center muted" style="font-size:.75rem;margin-top:24px" id="version"></p>
   </main>
 
@@ -83,6 +86,11 @@
       document.getElementById("nav-catalogue").style.display = "none";
       const qr = document.getElementById("nav-qr");
       if (qr) qr.style.display = "none";
+    }
+
+    // Lien retour dashboard cuisine visible uniquement pour le profil cuisine
+    if (getRole() === "cuisine") {
+      document.getElementById("nav-cuisine-back").style.display = "";
     }
 
     let articles = {}, stocks = {}, mouvements = {};
