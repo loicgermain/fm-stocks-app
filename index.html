@@ -45,7 +45,9 @@
 
     await requireAccess();
     // Cuisine a son propre dashboard
-    if (getRole() === "cuisine") { location.replace("cuisine-dashboard.html"); }
+    if (getRole() === "cuisine" && !new URLSearchParams(location.search).has("general")) {
+      location.replace("cuisine-dashboard.html");
+    }
     mountSunToggle();
     mountSync(db);
     document.getElementById("version").textContent = "FM Stocks · version " + (cfg.APP_VERSION || "?");
