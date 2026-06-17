@@ -46,6 +46,21 @@ function injectMarkup() {
       </form>
     </div>
 
+    <!-- Mouvement rapide (quantité libre) -->
+    <div class="modal-bg" id="quick-modal">
+      <form class="modal" id="quick-form" style="max-width:360px">
+        <h3 id="quick-titre">Article</h3>
+        <p class="muted" id="quick-cur" style="margin-top:0"></p>
+        <label for="quick-n">Quantité</label>
+        <input id="quick-n" type="number" min="1" step="1" value="1" inputmode="numeric" autofocus>
+        <div class="modal-actions">
+          <button type="button" class="secondary" id="quick-cancel">Annuler</button>
+          <button type="button" class="minus" id="quick-out">− Sortie</button>
+          <button type="button" class="plus" id="quick-in">+ Entrée</button>
+        </div>
+      </form>
+    </div>
+
     <!-- Inventaire rapide -->
     <div class="modal-bg" id="inv-modal">
       <form class="modal" id="inv-form" style="max-width:480px">
@@ -153,7 +168,7 @@ export async function initRemorque(remId) {
             <div class="nom">${esc(a.nom)}</div>
             <div class="sub">${esc(sub) || "&nbsp;"}</div>
           </div>
-          <div class="qte">${s.qte ?? 0}</div>
+          <div class="qte" data-act="qty" title="Saisir une quantité" style="cursor:pointer">${s.qte ?? 0}</div>
           <div class="row-actions">
             <button class="icon minus" data-act="minus" title="Sortie -1">−</button>
             <button class="icon plus" data-act="plus" title="Entrée +1">+</button>
@@ -168,8 +183,37 @@ export async function initRemorque(remId) {
       row.querySelector('[data-act="plus"]').addEventListener("click", () => adjust(id, +1));
       row.querySelector('[data-act="minus"]').addEventListener("click", () => adjust(id, -1));
       row.querySelector('[data-act="edit"]').addEventListener("click", () => openEdit(id));
+      row.querySelector('[data-act="qty"]').addEventListener("click", () => openQuick(id));
     });
   }
+
+  // ============ Mouvement rapide (quantité libre) ============
+  const quickModal = document.getElementById("quick-modal");
+  let quickId = null;
+
+  function openQuick(id) {
+    quickId = id;
+    const a = articles[id] || { nom: id };
+    document.getElementById("quick-titre").textContent = a.nom;
+    document.getElementById("quick-cur").textContent = `Stock actuel : ${stock[id]?.qte ?? 0}`;
+    const inp = document.getElementById("quick-n");
+    inp.value = 1;
+    quickModal.classList.add("open");
+    setTimeout(() => { inp.focus(); inp.select(); }, 50);
+  }
+  function closeQuick() { quickModal.classList.remove("open"); quickId = null; }
+
+  function applyQuick(sign) {
+    if (!quickId) return;
+    const n = Number(document.getElementById("quick-n").value) || 0;
+    if (n <= 0) { toast("Entre une quantité"); return; }
+    adjust(quickId, sign * n);
+    closeQuick();
+  }
+  document.getElementById("quick-in").addEventListener("click", () => applyQuick(+1));
+  document.getElementById("quick-out").addEventListener("click", () => applyQuick(-1));
+  document.getElementById("quick-cancel").addEventListener("click", closeQuick);
+  quickModal.addEventListener("click", e => { if (e.target === quickModal) closeQuick(); });
 
   // --- Ajustement rapide +/- 1 (enregistre un mouvement) ---
   async function adjust(id, delta) {

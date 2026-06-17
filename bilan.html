@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bilan — FM Stocks</title>
+  <link rel="icon" href="medias/favicon.png">
+  <link rel="apple-touch-icon" href="medias/favicon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#F47D0D">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app">
+    <a class="back" href="index.html" title="Retour">‹</a>
+    <h1>Bilan du week-end</h1>
+  </header>
+
+  <main class="wrap">
+    <div class="card" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+      <button id="exp-stocks" class="secondary">⬇️ Stocks (CSV)</button>
+      <button id="exp-mvts" class="secondary">⬇️ Mouvements (CSV)</button>
+    </div>
+
+    <h2>Consommation par article</h2>
+    <p class="muted" id="resume" style="font-size:.85rem"></p>
+    <div id="table"></div>
+
+    <h2>Zone admin</h2>
+    <div class="card">
+      <p class="muted" style="margin-top:0">Remet toutes les quantités à 0 (le catalogue et les articles des remorques sont conservés). À faire en fin de fête.</p>
+      <button id="reset-stocks" class="minus">🧹 Remettre tous les stocks à 0</button>
+    </div>
+  </main>
+
+  <script type="module">
+    import { requireAccess } from "./auth.js";
+    import { mountSync, trackWrite } from "./sync.js";
+    import { db, REMORQUES } from "./firebase-config.js";
+    import { esc, toast } from "./app.js";
+    import { ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    await requireAccess();
+    mountSync(db);
+
+    const remNom = Object.fromEntries(REMORQUES.map(r => [r.id, r.nom]));
+    let articles = {}, stocks = {}, mouvements = {};
+
+    onValue(ref(db, "articles"),   s => { articles   = s.val() || {}; render(); });
+    onValue(ref(db, "stocks"),     s => { stocks     = s.val() || {}; render(); });
+    onValue(ref(db, "mouvements"), s => { mouvements = s.val() || {}; render(); });
+
+    // --- Agrégation consommation ---
+    function aggregate() {
+      const agg = {}; // articleId -> {in, out}
+      for (const m of Object.values(mouvements)) {
+        const a = agg[m.articleId] || (agg[m.articleId] = { in: 0, out: 0 });
+        if (m.type === "in")  a.in  += Number(m.qte) || 0;
+        if (m.type === "out") a.out += Number(m.qte) || 0;
+      }
+      return agg;
+    }
+    function currentStock(articleId) {
+      let total = 0;
+      for (const r of REMORQUES) {
+        const v = stocks[r.id]?.[articleId]?.qte;
+        if (v != null) total += Number(v) || 0;
+      }
+      return total;
+    }
+
+    function render() {
+      const agg = aggregate();
+      const ids = new Set([...Object.keys(agg), ...Object.values(stocks).flatMap(s => Object.keys(s || {}))]);
+      const rows = [...ids].map(id => ({
+        id,
+        nom: articles[id]?.nom || id,
+        cat: articles[id]?.categorie || "",
+        in: agg[id]?.in || 0,
+        out: agg[id]?.out || 0,
+        stock: currentStock(id)
+      })).sort((a, b) => b.out - a.out || a.nom.localeCompare(b.nom));
+
+      const totalOut = rows.reduce((s, r) => s + r.out, 0);
+      document.getElementById("resume").textContent =
+        `${rows.length} article(s) · ${totalOut} unité(s) sorties au total`;
+
+      const tbl = document.getElementById("table");
+      if (!rows.length) { tbl.innerHTML = `<div class="empty-state">Aucune donnée.</div>`; return; }
+      tbl.innerHTML = `
+        <div class="card" style="overflow:auto;padding:0">
+          <table>
+            <thead><tr>
+              <th>Article</th><th style="text-align:right">Entrées</th>
+              <th style="text-align:right">Sorties</th><th style="text-align:right">Stock</th>
+            </tr></thead>
+            <tbody>
+              ${rows.map(r => `
+                <tr>
+                  <td>${esc(r.nom)}${r.cat ? `<div class="muted" style="font-size:.75rem">${esc(r.cat)}</div>` : ""}</td>
+                  <td style="text-align:right;color:#8fdc9e">+${r.in}</td>
+                  <td style="text-align:right;color:#f08aae">−${r.out}</td>
+                  <td style="text-align:right;font-weight:600">${r.stock}</td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    // --- Export CSV ---
+    function downloadCSV(filename, rows) {
+      // Échappe chaque cellule ; séparateur ; pour Excel FR
+      const esc = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+      const csv = "﻿" + rows.map(r => r.map(esc).join(";")).join("\r\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    const dstr = () => new Date().toISOString().slice(0, 10);
+
+    document.getElementById("exp-stocks").addEventListener("click", () => {
+      const rows = [["Remorque", "Article", "Categorie", "Conditionnement", "Quantite", "QteMax", "SeuilAlerte"]];
+      for (const r of REMORQUES) {
+        const st = stocks[r.id] || {};
+        for (const id of Object.keys(st)) {
+          const s = st[id], a = articles[id] || {};
+          rows.push([r.nom, a.nom || id, a.categorie || "", s.conditionnement || "", s.qte ?? 0, s.qteMax ?? "", s.seuilAlerte ?? ""]);
+        }
+      }
+      downloadCSV(`stocks_${dstr()}.csv`, rows);
+    });
+
+    document.getElementById("exp-mvts").addEventListener("click", () => {
+      const rows = [["Date", "Remorque", "Article", "Type", "Quantite", "Qui", "Note"]];
+      const list = Object.values(mouvements).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      for (const m of list) {
+        rows.push([
+          m.timestamp ? new Date(m.timestamp).toLocaleString("fr-FR") : "",
+          remNom[m.remorqueId] || m.remorqueId,
+          articles[m.articleId]?.nom || m.articleId,
+          m.type === "in" ? "Entree" : "Sortie",
+          m.qte ?? "", m.qui || "", m.note || ""
+        ]);
+      }
+      downloadCSV(`mouvements_${dstr()}.csv`, rows);
+    });
+
+    // --- Remise à zéro des stocks (admin 1218) ---
+    document.getElementById("reset-stocks").addEventListener("click", async () => {
+      const code = prompt("Code admin pour remettre tous les stocks à 0 :");
+      if (code === null) return;
+      if (code !== "1218") { toast("Code incorrect"); return; }
+      if (!confirm("Remettre TOUTES les quantités à 0 dans toutes les remorques ?")) return;
+      const updates = {};
+      for (const r of REMORQUES) {
+        const st = stocks[r.id] || {};
+        for (const id of Object.keys(st)) updates[`stocks/${r.id}/${id}/qte`] = 0;
+      }
+      try {
+        await trackWrite(update(ref(db), updates));
+        toast("Stocks remis à 0");
+      } catch (err) { toast("Erreur : " + err.message); }
+    });
+  </script>
+</body>
+</html>

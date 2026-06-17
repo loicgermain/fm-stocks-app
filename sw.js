@@ -7,7 +7,7 @@
 // le SDK Firebase gère lui-même le hors-ligne.
 //
 // ⚠️ Incrémenter CACHE à chaque déploiement important pour purger l'ancien.
-const CACHE = "fm-stocks-v3";
+const CACHE = "fm-stocks-v4";
 
 // App shell pré-chargé à l'installation (chemins relatifs à la racine du dépôt)
 const SHELL = [
@@ -16,6 +16,7 @@ const SHELL = [
   "./admin.html",
   "./qr.html",
   "./historique.html",
+  "./bilan.html",
   "./style.css",
   "./app.js",
   "./auth.js",
