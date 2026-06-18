@@ -6,7 +6,7 @@ import { mountSync, trackWrite } from "../sync.js";
 import { db, REMORQUES } from "../firebase-config.js";
 import { toast, esc, stockStatus, mountSunToggle, getPerm, isFullEdit } from "../app.js";
 import {
-  ref, onValue, update, remove, push, serverTimestamp
+  ref, onValue, update, remove, push, runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 // Injecte tout le markup de la page (header, liste, modales) pour que les
@@ -256,19 +256,31 @@ export async function initRemorque(remId) {
   document.getElementById("quick-cancel").addEventListener("click", closeQuick);
   quickModal.addEventListener("click", e => { if (e.target === quickModal) closeQuick(); });
 
-  // --- Ajustement rapide +/- 1 (enregistre un mouvement) ---
+  // --- Ajustement rapide (enregistre un mouvement) ---
+  // Transaction atomique : plusieurs taps rapides (ou plusieurs bénévoles en
+  // même temps) s'appliquent l'un après l'autre côté serveur, sans perte ni
+  // double-comptage. La quantité ne descend jamais sous 0, et le mouvement
+  // enregistré reflète la variation RÉELLE appliquée (utile si une grosse
+  // sortie dépasse le stock disponible).
   async function adjust(id, delta) {
-    const cur = Number(stock[id]?.qte) || 0;
-    const next = Math.max(0, cur + delta);
-    if (next === cur) return; // déjà à 0 sur un -1
     const qui = ensureQui();
+    let applied = 0;
     try {
-      await trackWrite(update(ref(db, `stocks/${remId}/${id}`), { qte: next }));
+      const res = await trackWrite(runTransaction(
+        ref(db, `stocks/${remId}/${id}/qte`),
+        cur => {
+          const c = Number(cur) || 0;
+          const next = Math.max(0, c + delta);
+          applied = next - c;
+          return next;
+        }
+      ));
+      if (!res.committed || applied === 0) return; // rien à enregistrer (ex. −1 à 0)
       await push(ref(db, "mouvements"), {
         remorqueId: remId,
         articleId: id,
-        type: delta > 0 ? "in" : "out",
-        qte: Math.abs(delta),
+        type: applied > 0 ? "in" : "out",
+        qte: Math.abs(applied),
         qui: qui || null,
         note: null,
         timestamp: serverTimestamp()
