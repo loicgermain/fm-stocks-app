@@ -103,13 +103,27 @@
     onValue(ref(db, "articles"),   s => { articles   = s.val() || {}; render(); });
     onValue(ref(db, "stocks"),     s => { stocks     = s.val() || {}; render(); });
     onValue(ref(db, "mouvements"), s => { mouvements = s.val() || {}; render(); });
-    // Compteur de réappros en attente (sur le bouton du dashboard)
-    onValue(ref(db, "demandes"), s => {
-      const d = s.val() || {};
-      const open = Object.values(d).filter(x => x.statut !== "faite").length;
+    // Bandeau Réappro : compteur + couleur selon ancienneté de la tâche la plus vieille
+    let demandes = {};
+    const WARN_MS   = 15 * 60 * 1000;
+    const DANGER_MS = 30 * 60 * 1000;
+    function refreshReapproBanner() {
       const el = document.getElementById("nav-reappro");
-      if (el) el.textContent = open ? `🚚 Réappro (${open})` : "🚚 Réappro";
-    });
+      if (!el) return;
+      const open = Object.values(demandes).filter(x => x.statut !== "faite");
+      if (!open.length) {
+        el.textContent = "🚚 Tout roule ✅";
+        el.className = "btn-banner ok";
+        return;
+      }
+      const now = Date.now();
+      const oldest = Math.min(...open.map(d => d.demandeeAt || now));
+      const age = now - oldest;
+      el.textContent = `🚚 Réappro (${open.length})${age >= DANGER_MS ? " !" : age >= WARN_MS ? " ⚠️" : ""}`;
+      el.className = "btn-banner" + (age >= DANGER_MS ? " danger" : age >= WARN_MS ? " warn" : "");
+    }
+    onValue(ref(db, "demandes"), s => { demandes = s.val() || {}; refreshReapproBanner(); });
+    setInterval(refreshReapproBanner, 60000);
 
     function render() {
       renderTiles();

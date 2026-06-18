@@ -229,7 +229,12 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   margin-bottom: 18px;
   font-weight: 700;
   letter-spacing: .02em;
+  border-radius: var(--radius);
+  transition: background .4s;
 }
+.btn-banner.ok     { background: var(--ok); }
+.btn-banner.warn   { background: var(--warn); }
+.btn-banner.danger { background: var(--danger); }
 
 .row-actions { display: flex; gap: 8px; align-items: center; }
 
