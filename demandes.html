@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Réappro — FM Stocks</title>
+  <link rel="icon" href="medias/favicon.png">
+  <link rel="apple-touch-icon" href="medias/favicon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#F47D0D">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .demande {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px; margin-bottom: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 5px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .demande.oubli { border-left-color: var(--danger); background: rgba(210,59,110,.08); }
+    .demande.prise { border-left-color: var(--warn); }
+    .demande.aprendre { border-left-color: var(--mauve); }
+    .demande .d-info { flex: 1; min-width: 0; }
+    .demande .d-titre { font-weight: 700; font-size: 1.05rem; }
+    .demande .d-titre .q { color: var(--accent); }
+    .demande .d-sub { color: var(--text-dim); font-size: .82rem; margin-top: 3px; }
+    .demande .d-act { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+    .demande .d-act button { white-space: nowrap; }
+    .d-cancel { background: transparent; border: none; color: var(--text-dim); font-size: 1.1rem; padding: 4px 6px; }
+    .sec-count { color: var(--text-dim); font-weight: 400; font-size: .85rem; }
+  </style>
+</head>
+<body>
+  <header class="app">
+    <a class="back" href="index.html" title="Retour">‹</a>
+    <h1>🚚 Réappro</h1>
+  </header>
+
+  <main class="wrap">
+    <div id="empty" class="empty-state" style="display:none">
+      Aucune demande en cours. ✅<br>Tout roule !
+    </div>
+
+    <section id="sec-oubli" style="display:none">
+      <h2 style="color:var(--danger)">⚠️ Oubliées <span class="sec-count" id="n-oubli"></span></h2>
+      <div id="list-oubli"></div>
+    </section>
+
+    <section id="sec-aprendre" style="display:none">
+      <h2>À prendre <span class="sec-count" id="n-aprendre"></span></h2>
+      <div id="list-aprendre"></div>
+    </section>
+
+    <section id="sec-encours" style="display:none">
+      <h2>En cours <span class="sec-count" id="n-encours"></span></h2>
+      <div id="list-encours"></div>
+    </section>
+  </main>
+
+  <!-- Modale "C'est fait" -->
+  <div class="modal-bg" id="fait-modal">
+    <form class="modal" id="fait-form" style="max-width:360px">
+      <h3>Réappro livrée ✅</h3>
+      <p class="muted" id="fait-info" style="margin-top:0"></p>
+      <label for="fait-qte">Ajouter au stock de la remorque ?</label>
+      <input id="fait-qte" type="number" min="0" step="1" inputmode="numeric">
+      <div class="modal-actions">
+        <button type="button" class="secondary" id="fait-sans">Sans toucher au stock</button>
+        <button type="submit">Ajouter au stock</button>
+      </div>
+    </form>
+  </div>
+
+  <script type="module">
+    import { requireAccess } from "./auth.js";
+    import { mountSync, trackWrite } from "./sync.js";
+    import { db, REMORQUES } from "./firebase-config.js";
+    import { esc, toast, mountSunToggle } from "./app.js";
+    import {
+      ref, onValue, update, push, remove, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    await requireAccess();
+    mountSunToggle();
+    mountSync(db);
+
+    const OUBLI_MS = 15 * 60 * 1000;   // une demande devient "oubliée" après 15 min
+    const remNom = Object.fromEntries(REMORQUES.map(r => [r.id, r.nom]));
+
+    // Bénévole (prénom partagé)
+    const QUI_KEY = "fm-qui";
+    const getQui = () => localStorage.getItem(QUI_KEY) || "";
+    function ensureQui() {
+      let q = getQui();
+      if (!q) { q = (prompt("Ton prénom :") || "").trim(); if (q) localStorage.setItem(QUI_KEY, q); }
+      return q;
+    }
+
+    let articles = {}, stocks = {}, demandes = {};
+    onValue(ref(db, "articles"),  s => { articles = s.val() || {}; render(); });
+    onValue(ref(db, "stocks"),    s => { stocks   = s.val() || {}; render(); });
+    onValue(ref(db, "demandes"),  s => { demandes = s.val() || {}; render(); });
+
+    function timeAgo(ts) {
+      if (!ts) return "à l'instant";
+      const sec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+      if (sec < 60) return "à l'instant";
+      const min = Math.floor(sec / 60);
+      if (min < 60) return `il y a ${min} min`;
+      const h = Math.floor(min / 60);
+      return `il y a ${h} h ${String(min % 60).padStart(2, "0")}`;
+    }
+
+    function refTs(d) { return d.statut === "prise" ? (d.priseAt || d.demandeeAt) : d.demandeeAt; }
+    function isOubli(d) {
+      const t = refTs(d);
+      return t ? (Date.now() - t > OUBLI_MS) : false;
+    }
+
+    function card(d) {
+      const nom = articles[d.articleId]?.nom || d.articleId;
+      const rem = remNom[d.remorqueId] || d.remorqueId;
+      const oubli = isOubli(d);
+      const cls = oubli ? "oubli" : (d.statut === "prise" ? "prise" : "aprendre");
+      let sub, action;
+      if (d.statut === "prise") {
+        sub = `${esc(rem)} · pris par <strong>${esc(d.prisePar || "?")}</strong> · ${timeAgo(d.priseAt)}`;
+        action = `<button data-act="fait" data-id="${d.id}">C'est fait ✅</button>`;
+      } else {
+        sub = `${esc(rem)} · demandé ${timeAgo(d.demandeeAt)}${d.demandeePar ? " · par " + esc(d.demandeePar) : ""}`;
+        action = `<button data-act="prendre" data-id="${d.id}">Je prends 🙋</button>`;
+      }
+      return `
+        <div class="demande ${cls}">
+          <div class="d-info">
+            <div class="d-titre"><span class="q">${esc(String(d.qte))}×</span> ${esc(nom)}</div>
+            <div class="d-sub">${oubli ? "⚠️ " : ""}${sub}</div>
+          </div>
+          <div class="d-act">
+            ${action}
+            <button class="d-cancel" data-act="annuler" data-id="${d.id}" title="Annuler la demande">✕</button>
+          </div>
+        </div>`;
+    }
+
+    function render() {
+      const list = Object.entries(demandes)
+        .map(([id, d]) => ({ id, ...d }))
+        .filter(d => d.statut !== "faite");
+
+      // tri : plus ancienne demande d'abord
+      list.sort((a, b) => (a.demandeeAt || 0) - (b.demandeeAt || 0));
+
+      const oubli = list.filter(isOubli);
+      const aprendre = list.filter(d => !isOubli(d) && d.statut !== "prise");
+      const encours = list.filter(d => !isOubli(d) && d.statut === "prise");
+
+      fillSection("oubli", oubli);
+      fillSection("aprendre", aprendre);
+      fillSection("encours", encours);
+
+      document.getElementById("empty").style.display = list.length ? "none" : "block";
+      wire();
+    }
+
+    function fillSection(key, arr) {
+      document.getElementById("sec-" + key).style.display = arr.length ? "block" : "none";
+      document.getElementById("n-" + key).textContent = arr.length ? `(${arr.length})` : "";
+      document.getElementById("list-" + key).innerHTML = arr.map(card).join("");
+    }
+
+    function wire() {
+      document.querySelectorAll('[data-act="prendre"]').forEach(b =>
+        b.onclick = () => prendre(b.dataset.id));
+      document.querySelectorAll('[data-act="fait"]').forEach(b =>
+        b.onclick = () => openFait(b.dataset.id));
+      document.querySelectorAll('[data-act="annuler"]').forEach(b =>
+        b.onclick = () => annuler(b.dataset.id));
+    }
+
+    async function prendre(id) {
+      const qui = ensureQui();
+      try {
+        await trackWrite(update(ref(db, "demandes/" + id), {
+          statut: "prise", prisePar: qui || "?", priseAt: serverTimestamp()
+        }));
+        toast("C'est noté, à toi de jouer 🙋");
+      } catch (err) { toast("Erreur : " + err.message); }
+    }
+
+    async function annuler(id) {
+      if (!confirm("Annuler cette demande de réappro ?")) return;
+      try { await trackWrite(remove(ref(db, "demandes/" + id))); toast("Demande annulée"); }
+      catch (err) { toast("Erreur : " + err.message); }
+    }
+
+    // --- Modale "C'est fait" : proposer d'ajouter au stock ---
+    const faitModal = document.getElementById("fait-modal");
+    let faitId = null;
+
+    function openFait(id) {
+      const d = demandes[id]; if (!d) return;
+      faitId = id;
+      const nom = articles[d.articleId]?.nom || d.articleId;
+      const rem = remNom[d.remorqueId] || d.remorqueId;
+      const cur = stocks[d.remorqueId]?.[d.articleId]?.qte ?? 0;
+      document.getElementById("fait-info").innerHTML =
+        `<strong>${esc(String(d.qte))}× ${esc(nom)}</strong> pour <strong>${esc(rem)}</strong>.<br>Stock actuel : ${cur}.`;
+      document.getElementById("fait-qte").value = d.qte;
+      faitModal.classList.add("open");
+    }
+    function closeFait() { faitModal.classList.remove("open"); faitId = null; }
+
+    async function markFaite() {
+      const qui = ensureQui();
+      await trackWrite(update(ref(db, "demandes/" + faitId), {
+        statut: "faite", faitePar: qui || "?", faiteAt: serverTimestamp()
+      }));
+    }
+
+    // "Ajouter au stock"
+    document.getElementById("fait-form").addEventListener("submit", async e => {
+      e.preventDefault();
+      const d = demandes[faitId]; if (!d) return;
+      const add = Number(document.getElementById("fait-qte").value) || 0;
+      try {
+        if (add > 0) {
+          const cur = Number(stocks[d.remorqueId]?.[d.articleId]?.qte) || 0;
+          await trackWrite(update(ref(db, `stocks/${d.remorqueId}/${d.articleId}`), { qte: cur + add }));
+          await push(ref(db, "mouvements"), {
+            remorqueId: d.remorqueId, articleId: d.articleId, type: "in", qte: add,
+            qui: getQui() || null, note: "réappro", timestamp: serverTimestamp()
+          });
+        }
+        await markFaite();
+        toast("Réappro livrée ✅");
+        closeFait();
+      } catch (err) { toast("Erreur : " + err.message); }
+    });
+
+    // "Sans toucher au stock"
+    document.getElementById("fait-sans").addEventListener("click", async () => {
+      try { await markFaite(); toast("Réappro livrée ✅"); closeFait(); }
+      catch (err) { toast("Erreur : " + err.message); }
+    });
+    faitModal.addEventListener("click", e => { if (e.target === faitModal) closeFait(); });
+
+    // Rafraîchit les "il y a X min" et le passage en "oublié"
+    setInterval(render, 30000);
+  </script>
+</body>
+</html>

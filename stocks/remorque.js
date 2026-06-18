@@ -74,6 +74,20 @@ function injectMarkup() {
       </form>
     </div>
 
+    <!-- Demander une réappro -->
+    <div class="modal-bg" id="req-modal">
+      <form class="modal" id="req-form" style="max-width:340px">
+        <h3 id="req-titre">Demander réappro</h3>
+        <p class="muted" id="req-cur" style="margin-top:0"></p>
+        <label for="req-qte">Quantité à demander</label>
+        <input id="req-qte" type="number" min="1" step="1" value="1" inputmode="numeric">
+        <div class="modal-actions">
+          <button type="button" class="secondary" id="req-cancel">Annuler</button>
+          <button type="submit">🚚 Demander</button>
+        </div>
+      </form>
+    </div>
+
     <!-- Ajout d'un article du catalogue -->
     <div class="modal-bg" id="add-modal">
       <form class="modal" id="add-form">
@@ -192,6 +206,7 @@ export async function initRemorque(remId) {
           ${isFullEdit() ? `<div class="row-actions">
             <button class="icon minus" data-act="minus" title="Sortie -1">−</button>
             <button class="icon plus" data-act="plus" title="Entrée +1">+</button>
+            <button class="icon req" data-act="req" title="Demander réappro">🚚</button>
             <button class="ghost" data-act="edit" title="Réglages">⚙</button>
           </div>` : perm === "sortie" ? `<div class="row-actions">
             <button class="icon minus" data-act="minus" title="Sortie">−</button>
@@ -208,6 +223,7 @@ export async function initRemorque(remId) {
         if (isFullEdit()) {
           row.querySelector('[data-act="plus"]')?.addEventListener("click", () => adjust(id, +1));
           row.querySelector('[data-act="edit"]')?.addEventListener("click", () => openEdit(id));
+          row.querySelector('[data-act="req"]')?.addEventListener("click", () => openReq(id));
         }
       });
     }
@@ -383,6 +399,45 @@ export async function initRemorque(remId) {
   });
 
   // ============ Modale ajout d'un article du catalogue ============
+  // ============ Demander une réappro ============
+  const reqModal = document.getElementById("req-modal");
+  let reqId = null;
+
+  function openReq(id) {
+    reqId = id;
+    const a = articles[id] || { nom: id };
+    const s = stock[id] || {};
+    document.getElementById("req-titre").textContent = "Réappro — " + a.nom;
+    document.getElementById("req-cur").textContent = `Stock actuel : ${s.qte ?? 0}` +
+      (s.qteMax ? ` · max ${s.qteMax}` : "");
+    // Suggestion : de quoi remonter au max, sinon 1
+    const suggestion = s.qteMax ? Math.max(1, s.qteMax - (Number(s.qte) || 0)) : 1;
+    document.getElementById("req-qte").value = suggestion;
+    reqModal.classList.add("open");
+    setTimeout(() => { const i = document.getElementById("req-qte"); i.focus(); i.select(); }, 50);
+  }
+  function closeReq() { reqModal.classList.remove("open"); reqId = null; }
+  document.getElementById("req-cancel").addEventListener("click", closeReq);
+  reqModal.addEventListener("click", e => { if (e.target === reqModal) closeReq(); });
+
+  document.getElementById("req-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!reqId) return;
+    const qte = Number(document.getElementById("req-qte").value) || 0;
+    if (qte <= 0) { toast("Indique une quantité"); return; }
+    const qui = ensureQui();
+    try {
+      await trackWrite(push(ref(db, "demandes"), {
+        remorqueId: remId, articleId: reqId, qte,
+        statut: "demandee",
+        demandeePar: qui || null, demandeeAt: serverTimestamp(),
+        prisePar: null, priseAt: null, faitePar: null, faiteAt: null
+      }));
+      toast("Réappro demandée 🚚");
+      closeReq();
+    } catch (err) { toast("Erreur : " + err.message); }
+  });
+
   const addModal = document.getElementById("add-modal");
 
   let addDispo = []; // ids d'articles disponibles (pas encore dans la remorque)

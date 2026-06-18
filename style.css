@@ -213,6 +213,7 @@ button.icon {
 }
 button.plus { background: var(--ok); color: #fff; }
 button.minus { background: var(--danger); color: #fff; }
+button.req { background: var(--mauve); color: #fff; font-size: 1.1rem; }
 button:disabled { opacity: .4; cursor: not-allowed; }
 
 .row-actions { display: flex; gap: 8px; align-items: center; }

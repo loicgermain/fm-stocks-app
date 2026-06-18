@@ -33,6 +33,7 @@
     <div id="alertes"><p class="muted">Chargement…</p></div>
 
     <p class="center" style="margin-top:28px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap">
+      <a class="btn" id="nav-reappro" href="demandes.html">🚚 Réappro</a>
       <a class="btn secondary" href="bilan.html">📊 Bilan</a>
       <a class="btn secondary" href="historique.html">📜 Historique</a>
       <a class="btn secondary" id="nav-qr" href="qr.html">🖨️ QR codes à imprimer</a>
@@ -103,6 +104,13 @@
     onValue(ref(db, "articles"),   s => { articles   = s.val() || {}; render(); });
     onValue(ref(db, "stocks"),     s => { stocks     = s.val() || {}; render(); });
     onValue(ref(db, "mouvements"), s => { mouvements = s.val() || {}; render(); });
+    // Compteur de réappros en attente (sur le bouton du dashboard)
+    onValue(ref(db, "demandes"), s => {
+      const d = s.val() || {};
+      const open = Object.values(d).filter(x => x.statut !== "faite").length;
+      const el = document.getElementById("nav-reappro");
+      if (el) el.textContent = open ? `🚚 Réappro (${open})` : "🚚 Réappro";
+    });
 
     function render() {
       renderTiles();
