@@ -115,6 +115,9 @@ header.app .back {
   font-size: 1.4rem;
   line-height: 1;
 }
+/* Logo cliquable comme bouton retour (remplace la flèche ‹ sur les sous-pages) */
+a.logo-link { display: contents; }
+a.logo-link .brand-logo { cursor: pointer; }
 
 h2 { font-size: 1.05rem; margin: 1.4em 0 .6em; color: var(--accent); }
 

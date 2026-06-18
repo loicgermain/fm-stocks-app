@@ -14,8 +14,7 @@ import {
 function injectMarkup() {
   document.body.innerHTML = `
     <header class="app">
-      <a class="back" href="../index.html" title="Retour">‹</a>
-      <img class="brand-logo" src="../medias/favicon.png" alt="Fête Médiévale">
+      <a class="logo-link" href="../index.html" title="Retour au dashboard"><img class="brand-logo" src="../medias/favicon.png" alt="Retour"></a>
       <h1 id="titre">Remorque</h1>
       <button id="qui" class="chip" title="Changer de bénévole"></button>
       <button id="btn-inv" class="icon-btn" title="Inventaire rapide">📋</button>

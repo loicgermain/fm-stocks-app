@@ -106,10 +106,10 @@
 
   <script type="module">
     import { requireAccess, clearAccess } from "./auth.js";
-    import { mountSync, trackWrite } from "./sync.js";
+    import { mountSync } from "./sync.js";
     import { db, REMORQUES } from "./firebase-config.js";
-    import { esc, stockStatus, mountSunToggle, getPerm, getRole, toast } from "./app.js";
-    import { ref, onValue, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { esc, stockStatus, mountSunToggle, getPerm, getRole } from "./app.js";
+    import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
     await requireAccess();
 
@@ -307,33 +307,10 @@
               <div class="nom">${esc(a.nom)}</div>
               <div class="loc">${locs || "—"}</div>
               <div class="total">${a.total}</div>
-              <button class="icon req" data-req="${a.aid}" data-nom="${esc(a.nom)}" title="Demander réappro pour la cuisine">🚚</button>
             </div>`;
         }
       }
       el.innerHTML = html || `<p class="empty-state">Aucun stock enregistré.</p>`;
-      el.querySelectorAll('[data-req]').forEach(b =>
-        b.onclick = () => demanderReappro(b.dataset.req, b.dataset.nom));
-    }
-
-    // Demande de réappro vers la cuisine (depuis le dashboard cuisine)
-    async function demanderReappro(aid, nom) {
-      const v = prompt(`Quantité de « ${nom} » à demander pour la CUISINE ?`, "1");
-      if (v === null) return;
-      const qte = Number(v) || 0;
-      if (qte <= 0) { toast("Indique une quantité"); return; }
-      let qui = getQui();
-      if (!qui) { qui = (prompt("Ton prénom :") || "").trim(); if (qui) localStorage.setItem(QUI_KEY, qui); }
-      try {
-        await trackWrite(push(ref(db, "demandes"), {
-          remorqueId: "cuisine", articleId: aid, qte, livre: 0,
-          statut: "demandee",
-          demandeePar: qui || null, demandeeAt: serverTimestamp(),
-          prisePar: null, priseAt: null, faitePar: null, faiteAt: null
-        }));
-        toast("Réappro demandée 🚚");
-      } catch (err) { toast("Erreur : " + err.message); }
-    }
 
     function checkNotif(alerts) {
       if (firstLoad) {
