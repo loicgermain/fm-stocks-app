@@ -428,7 +428,7 @@ export async function initRemorque(remId) {
     const qui = ensureQui();
     try {
       await trackWrite(push(ref(db, "demandes"), {
-        remorqueId: remId, articleId: reqId, qte,
+        remorqueId: remId, articleId: reqId, qte, livre: 0,
         statut: "demandee",
         demandeePar: qui || null, demandeeAt: serverTimestamp(),
         prisePar: null, priseAt: null, faitePar: null, faiteAt: null

@@ -26,9 +26,11 @@
     .demande .d-titre { font-weight: 700; font-size: 1.05rem; }
     .demande .d-titre .q { color: var(--accent); }
     .demande .d-sub { color: var(--text-dim); font-size: .82rem; margin-top: 3px; }
-    .demande .d-act { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+    .demande .d-act { display: flex; flex-direction: column; gap: 6px; align-items: stretch; min-width: 116px; }
     .demande .d-act button { white-space: nowrap; }
-    .d-cancel { background: transparent; border: none; color: var(--text-dim); font-size: 1.1rem; padding: 4px 6px; }
+    .demande .d-act .mini { font-size: .8rem; padding: 6px 8px; }
+    .d-cancel { background: transparent; border: none; color: var(--text-dim); font-size: 1.1rem; padding: 4px 6px; align-self: center; }
+    .demande .d-prog { color: var(--accent); font-weight: 600; }
     .sec-count { color: var(--text-dim); font-weight: 400; font-size: .85rem; }
   </style>
 </head>
@@ -59,15 +61,15 @@
     </section>
   </main>
 
-  <!-- Modale "C'est fait" -->
-  <div class="modal-bg" id="fait-modal">
-    <form class="modal" id="fait-form" style="max-width:360px">
-      <h3>Réappro livrée ✅</h3>
-      <p class="muted" id="fait-info" style="margin-top:0"></p>
-      <label for="fait-qte">Ajouter au stock de la remorque ?</label>
-      <input id="fait-qte" type="number" min="0" step="1" inputmode="numeric">
+  <!-- Modale livraison (totale ou partielle) -->
+  <div class="modal-bg" id="livr-modal">
+    <form class="modal" id="livr-form" style="max-width:360px">
+      <h3 id="livr-titre">Réappro livrée ✅</h3>
+      <p class="muted" id="livr-info" style="margin-top:0"></p>
+      <label for="livr-qte" id="livr-label">Quantité ajoutée au stock</label>
+      <input id="livr-qte" type="number" min="0" step="1" inputmode="numeric">
       <div class="modal-actions">
-        <button type="button" class="secondary" id="fait-sans">Sans toucher au stock</button>
+        <button type="button" class="secondary" id="livr-sans">Sans toucher au stock</button>
         <button type="submit">Ajouter au stock</button>
       </div>
     </form>
@@ -124,12 +126,20 @@
       const rem = remNom[d.remorqueId] || d.remorqueId;
       const oubli = isOubli(d);
       const cls = oubli ? "oubli" : (d.statut === "prise" ? "prise" : "aprendre");
+      const livre = Number(d.livre) || 0;
+      const reste = Math.max(0, (Number(d.qte) || 0) - livre);
+      const prog = livre > 0
+        ? ` · <span class="d-prog">déjà ${livre}/${esc(String(d.qte))} · reste ${reste}</span>`
+        : "";
       let sub, action;
       if (d.statut === "prise") {
-        sub = `${esc(rem)} · pris par <strong>${esc(d.prisePar || "?")}</strong> · ${timeAgo(d.priseAt)}`;
-        action = `<button data-act="fait" data-id="${d.id}">C'est fait ✅</button>`;
+        sub = `${esc(rem)} · pris par <strong>${esc(d.prisePar || "?")}</strong> · ${timeAgo(d.priseAt)}${prog}`;
+        action = `
+          <button data-act="fait" data-id="${d.id}">C'est fait ✅</button>
+          <button class="secondary mini" data-act="partiel" data-id="${d.id}">Partiel ➗</button>
+          <button class="ghost mini" data-act="relacher" data-id="${d.id}">Relâcher ↩</button>`;
       } else {
-        sub = `${esc(rem)} · demandé ${timeAgo(d.demandeeAt)}${d.demandeePar ? " · par " + esc(d.demandeePar) : ""}`;
+        sub = `${esc(rem)} · demandé ${timeAgo(d.demandeeAt)}${d.demandeePar ? " · par " + esc(d.demandeePar) : ""}${prog}`;
         action = `<button data-act="prendre" data-id="${d.id}">Je prends 🙋</button>`;
       }
       return `
@@ -175,7 +185,11 @@
       document.querySelectorAll('[data-act="prendre"]').forEach(b =>
         b.onclick = () => prendre(b.dataset.id));
       document.querySelectorAll('[data-act="fait"]').forEach(b =>
-        b.onclick = () => openFait(b.dataset.id));
+        b.onclick = () => openLivr(b.dataset.id, "fait"));
+      document.querySelectorAll('[data-act="partiel"]').forEach(b =>
+        b.onclick = () => openLivr(b.dataset.id, "partiel"));
+      document.querySelectorAll('[data-act="relacher"]').forEach(b =>
+        b.onclick = () => relacher(b.dataset.id));
       document.querySelectorAll('[data-act="annuler"]').forEach(b =>
         b.onclick = () => annuler(b.dataset.id));
     }
@@ -190,62 +204,82 @@
       } catch (err) { toast("Erreur : " + err.message); }
     }
 
+    // Relâcher une tâche prise : repart en "À prendre".
+    // demandeeAt et la progression (livre) sont conservés → l'ancienneté
+    // de la demande n'est pas faussée et le suivant voit ce qui reste.
+    async function relacher(id) {
+      try {
+        await trackWrite(update(ref(db, "demandes/" + id), {
+          statut: "demandee", prisePar: null, priseAt: null
+        }));
+        toast("Tâche relâchée, dispo pour un autre ↩");
+      } catch (err) { toast("Erreur : " + err.message); }
+    }
+
     async function annuler(id) {
       if (!confirm("Annuler cette demande de réappro ?")) return;
       try { await trackWrite(remove(ref(db, "demandes/" + id))); toast("Demande annulée"); }
       catch (err) { toast("Erreur : " + err.message); }
     }
 
-    // --- Modale "C'est fait" : proposer d'ajouter au stock ---
-    const faitModal = document.getElementById("fait-modal");
-    let faitId = null;
+    // --- Modale livraison : totale ("fait") ou partielle ("partiel") ---
+    const livrModal = document.getElementById("livr-modal");
+    let livrId = null, livrMode = "fait";
 
-    function openFait(id) {
+    function openLivr(id, mode) {
       const d = demandes[id]; if (!d) return;
-      faitId = id;
+      livrId = id; livrMode = mode;
       const nom = articles[d.articleId]?.nom || d.articleId;
       const rem = remNom[d.remorqueId] || d.remorqueId;
       const cur = stocks[d.remorqueId]?.[d.articleId]?.qte ?? 0;
-      document.getElementById("fait-info").innerHTML =
-        `<strong>${esc(String(d.qte))}× ${esc(nom)}</strong> pour <strong>${esc(rem)}</strong>.<br>Stock actuel : ${cur}.`;
-      document.getElementById("fait-qte").value = d.qte;
-      faitModal.classList.add("open");
+      const livre = Number(d.livre) || 0;
+      const reste = Math.max(0, (Number(d.qte) || 0) - livre);
+      document.getElementById("livr-titre").textContent =
+        mode === "fait" ? "Réappro terminée ✅" : "Livraison partielle ➗";
+      document.getElementById("livr-label").textContent =
+        mode === "fait" ? "Quantité ajoutée au stock" : "Quantité apportée maintenant";
+      document.getElementById("livr-info").innerHTML =
+        `<strong>${esc(String(d.qte))}× ${esc(nom)}</strong> pour <strong>${esc(rem)}</strong>.` +
+        (livre > 0 ? `<br>Déjà livré : ${livre} · reste ${reste}.` : "") +
+        `<br>Stock actuel : ${cur}.`;
+      const input = document.getElementById("livr-qte");
+      input.value = reste;
+      input.max = reste;
+      livrModal.classList.add("open");
+      setTimeout(() => { input.focus(); input.select(); }, 50);
     }
-    function closeFait() { faitModal.classList.remove("open"); faitId = null; }
+    function closeLivr() { livrModal.classList.remove("open"); livrId = null; }
 
-    async function markFaite() {
+    // Applique la livraison. touchStock = ajouter ou non au stock remorque.
+    async function applyLivr(touchStock) {
+      const d = demandes[livrId]; if (!d) return;
       const qui = ensureQui();
-      await trackWrite(update(ref(db, "demandes/" + faitId), {
-        statut: "faite", faitePar: qui || "?", faiteAt: serverTimestamp()
-      }));
-    }
-
-    // "Ajouter au stock"
-    document.getElementById("fait-form").addEventListener("submit", async e => {
-      e.preventDefault();
-      const d = demandes[faitId]; if (!d) return;
-      const add = Number(document.getElementById("fait-qte").value) || 0;
+      const add = Math.max(0, Number(document.getElementById("livr-qte").value) || 0);
+      const livre = Number(d.livre) || 0;
+      const newLivre = livre + add;
+      // Statut final : "fait" clôt toujours ; "partiel" clôt si tout est livré.
+      const fini = livrMode === "fait" || newLivre >= (Number(d.qte) || 0);
       try {
-        if (add > 0) {
+        if (touchStock && add > 0) {
           const cur = Number(stocks[d.remorqueId]?.[d.articleId]?.qte) || 0;
           await trackWrite(update(ref(db, `stocks/${d.remorqueId}/${d.articleId}`), { qte: cur + add }));
           await push(ref(db, "mouvements"), {
             remorqueId: d.remorqueId, articleId: d.articleId, type: "in", qte: add,
-            qui: getQui() || null, note: "réappro", timestamp: serverTimestamp()
+            qui: qui || null, note: "réappro", timestamp: serverTimestamp()
           });
         }
-        await markFaite();
-        toast("Réappro livrée ✅");
-        closeFait();
+        const patch = fini
+          ? { statut: "faite", livre: newLivre, faitePar: qui || "?", faiteAt: serverTimestamp() }
+          : { livre: newLivre };
+        await trackWrite(update(ref(db, "demandes/" + livrId), patch));
+        toast(fini ? "Réappro livrée ✅" : `Partiel noté : ${newLivre}/${d.qte} ➗`);
+        closeLivr();
       } catch (err) { toast("Erreur : " + err.message); }
-    });
+    }
 
-    // "Sans toucher au stock"
-    document.getElementById("fait-sans").addEventListener("click", async () => {
-      try { await markFaite(); toast("Réappro livrée ✅"); closeFait(); }
-      catch (err) { toast("Erreur : " + err.message); }
-    });
-    faitModal.addEventListener("click", e => { if (e.target === faitModal) closeFait(); });
+    document.getElementById("livr-form").addEventListener("submit", e => { e.preventDefault(); applyLivr(true); });
+    document.getElementById("livr-sans").addEventListener("click", () => applyLivr(false));
+    livrModal.addEventListener("click", e => { if (e.target === livrModal) closeLivr(); });
 
     // Rafraîchit les "il y a X min" et le passage en "oublié"
     setInterval(render, 30000);

@@ -216,6 +216,21 @@ button.minus { background: var(--danger); color: #fff; }
 button.req { background: var(--mauve); color: #fff; font-size: 1.1rem; }
 button:disabled { opacity: .4; cursor: not-allowed; }
 
+/* Bouton bandeau (pleine largeur, ex. Réappro sur le dashboard) */
+.btn-banner {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+  text-decoration: none;
+  background: var(--mauve);
+  color: #fff;
+  padding: 12px;
+  margin-bottom: 18px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
 .row-actions { display: flex; gap: 8px; align-items: center; }
 
 /* Formulaires */

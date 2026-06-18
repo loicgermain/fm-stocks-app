@@ -326,7 +326,7 @@
       if (!qui) { qui = (prompt("Ton prénom :") || "").trim(); if (qui) localStorage.setItem(QUI_KEY, qui); }
       try {
         await trackWrite(push(ref(db, "demandes"), {
-          remorqueId: "cuisine", articleId: aid, qte,
+          remorqueId: "cuisine", articleId: aid, qte, livre: 0,
           statut: "demandee",
           demandeePar: qui || null, demandeeAt: serverTimestamp(),
           prisePar: null, priseAt: null, faitePar: null, faiteAt: null
