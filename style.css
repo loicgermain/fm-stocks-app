@@ -393,14 +393,22 @@ html[data-sun] button.ghost  { color: var(--text-dim); }
 html[data-sun] #sync { background: var(--surface); border-color: var(--border); }
 
 /* ── Barre de recherche ── */
-.search-wrap { margin-bottom: 20px; }
+/* Indicateur discret de dernière mise à jour (pages remorque) */
+.last-maj {
+  color: var(--text-dim);
+  font-size: .75rem;
+  margin: -4px 0 10px;
+  min-height: 1em;
+}
+
+.search-wrap { margin-bottom: 10px; }
 .search-wrap input {
-  width: 100%; padding: 11px 16px;
+  width: 100%; padding: 8px 14px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
-  font-size: 1rem;
+  font-size: .9rem;
   box-sizing: border-box;
   transition: border-color .15s;
 }

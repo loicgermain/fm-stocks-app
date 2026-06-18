@@ -6,8 +6,20 @@ import { mountSync, trackWrite } from "../sync.js";
 import { db, REMORQUES } from "../firebase-config.js";
 import { toast, esc, stockStatus, getPerm, isFullEdit } from "../app.js";
 import {
-  ref, onValue, update, remove, push, runTransaction, serverTimestamp
+  ref, onValue, update, remove, push, runTransaction, serverTimestamp,
+  query, limitToLast
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+// "il y a x min" — même logique que le dashboard.
+function relTime(ts) {
+  if (!ts) return null;
+  const min = Math.floor((Date.now() - ts) / 60000);
+  if (min < 2)  return "à l'instant";
+  if (min < 60) return `il y a ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24)   return `il y a ${h}h`;
+  return `il y a ${Math.floor(h / 24)}j`;
+}
 
 // Injecte tout le markup de la page (header, liste, modales) pour que les
 // fichiers cuisine.html / ecole.html / … restent minimaux.
@@ -21,7 +33,10 @@ function injectMarkup() {
       <button id="btn-add" class="icon-btn add" title="Ajouter un article">+</button>
     </header>
 
-    <main class="wrap"><div id="list"></div></main>
+    <main class="wrap">
+      <div id="last-maj" class="last-maj"></div>
+      <div id="list"></div>
+    </main>
 
     <!-- Réglages d'un stock -->
     <div class="modal-bg" id="edit-modal">
@@ -168,6 +183,27 @@ export async function initRemorque(remId) {
   // --- Lecture temps réel ---
   onValue(ref(db, "articles"), s => { articles = s.val() || {}; render(); });
   onValue(ref(db, `stocks/${remId}`), s => { stock = s.val() || {}; render(); });
+
+  // --- Dernière mise à jour de la remorque (petit indicateur "il y a x min") ---
+  // On ne lit que les 50 derniers mouvements (économie de batterie), puis on
+  // garde le plus récent concernant cette remorque.
+  let lastMajTs = 0;
+  const majEl = document.getElementById("last-maj");
+  function renderMaj() {
+    const rel = relTime(lastMajTs);
+    majEl.textContent = rel ? `🕐 Mis à jour ${rel}` : "";
+  }
+  onValue(query(ref(db, "mouvements"), limitToLast(50)), s => {
+    const mvts = s.val() || {};
+    let maxTs = 0;
+    for (const m of Object.values(mvts)) {
+      if (m.remorqueId === remId && (m.timestamp || 0) > maxTs) maxTs = m.timestamp;
+    }
+    lastMajTs = maxTs;
+    renderMaj();
+  });
+  // Rafraîchit le texte relatif sans relire la base (sauf en arrière-plan).
+  setInterval(() => { if (!document.hidden) renderMaj(); }, 60000);
 
   // --- Rendu de la liste ---
   function render() {
