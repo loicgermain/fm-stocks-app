@@ -4,7 +4,7 @@
 import { requireAccess } from "../auth.js";
 import { mountSync, trackWrite } from "../sync.js";
 import { db, REMORQUES } from "../firebase-config.js";
-import { toast, esc, stockStatus, mountSunToggle, getPerm, isFullEdit } from "../app.js";
+import { toast, esc, stockStatus, getPerm, isFullEdit } from "../app.js";
 import {
   ref, onValue, update, remove, push, runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
@@ -119,7 +119,6 @@ export async function initRemorque(remId) {
 
   await requireAccess();
   injectMarkup();
-  mountSunToggle();
   mountSync(db);
   document.title = `${remorque.nom} — FM Stocks`;
   document.getElementById("titre").textContent = remorque.nom;

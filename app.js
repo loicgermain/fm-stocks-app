@@ -11,7 +11,7 @@ export function mountSunToggle() {
   if (!hdr) return;
   const root = document.documentElement;
   const btn = document.createElement("button");
-  btn.className = "icon-btn";
+  btn.className = "icon-btn sun";
   const update = () => { btn.textContent = root.hasAttribute("data-sun") ? "🌙" : "☀️"; btn.title = root.hasAttribute("data-sun") ? "Thème sombre" : "Mode soleil"; };
   update();
   btn.addEventListener("click", () => {

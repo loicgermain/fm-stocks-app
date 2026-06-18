@@ -91,6 +91,13 @@ header.app .icon-btn {
   border: 1px solid var(--border);
   flex-shrink: 0;
 }
+/* Bouton thème jour/nuit : même hauteur que les chips de l'en-tête */
+header.app .icon-btn.sun {
+  width: 32px;
+  height: 32px;
+  font-size: 1.05rem;
+  border-radius: 999px;
+}
 header.app .icon-btn.add {
   background: var(--accent);
   color: #1a1410;
