@@ -71,8 +71,10 @@
     .stock-row.empty { border-left: 4px solid var(--danger); }
     .stock-row.low   { border-left: 4px solid var(--warn); }
     .stock-row.ok    { border-left: 4px solid var(--ok); }
-    .stock-row .nom  { flex: 1; font-weight: 600; }
+    .stock-row .sr-main { flex: 1; min-width: 0; }
+    .stock-row .nom  { font-weight: 600; }
     .stock-row .loc  { font-size: .75rem; color: var(--text-dim); }
+    .stock-row .conso { font-size: .78rem; color: var(--accent); margin-top: 2px; font-weight: 600; }
     .stock-row .total {
       font-size: 1.4rem;
       font-weight: 800;
@@ -155,12 +157,38 @@
     });
 
     // --- Données Firebase ---
-    let articles = {}, stocks = {};
+    let articles = {}, stocks = {}, mouvements = {};
     let prevAlertKeys = new Set();
     let firstLoad = true;
 
-    onValue(ref(db, "articles"), s => { articles = s.val() || {}; render(); });
-    onValue(ref(db, "stocks"),   s => { stocks   = s.val() || {}; render(); });
+    onValue(ref(db, "articles"),   s => { articles   = s.val() || {}; render(); });
+    onValue(ref(db, "stocks"),     s => { stocks     = s.val() || {}; render(); });
+    onValue(ref(db, "mouvements"), s => { mouvements = s.val() || {}; render(); });
+
+    // Consommation par article depuis le dernier reset (les mouvements sont
+    // effacés au reset, donc tout ce qui reste en base = depuis le reset).
+    // recent = sorties des 2 dernières heures → sert à estimer la vitesse.
+    const RECENT_MS = 2 * 60 * 60 * 1000;
+    function buildConsoMap() {
+      const cut = Date.now() - RECENT_MS;
+      const c = {}; // aid → { out, recent }
+      for (const m of Object.values(mouvements)) {
+        if (m.type !== "out") continue;
+        const e = c[m.articleId] || (c[m.articleId] = { out: 0, recent: 0 });
+        const q = Number(m.qte) || 0;
+        e.out += q;
+        if ((m.timestamp || 0) >= cut) e.recent += q;
+      }
+      return c;
+    }
+    function consoLabel(e) {
+      if (!e || e.out <= 0) return "";
+      const rate = e.recent / (RECENT_MS / 3600000); // unités / h sur 2 h
+      const vit = e.recent > 0
+        ? ` · ~${rate >= 10 ? Math.round(rate) : Math.round(rate * 10) / 10}/h`
+        : " · au repos";
+      return `↘ ${e.out} consommé${e.out > 1 ? "s" : ""}${vit}`;
+    }
 
     // --- Calcul état global par article ---
     function buildArticleMap() {
@@ -205,7 +233,8 @@
 
     function render() {
       const map = buildArticleMap();
-      const items = Object.entries(map).map(([aid, a]) => ({ aid, ...a }));
+      const conso = buildConsoMap();
+      const items = Object.entries(map).map(([aid, a]) => ({ aid, ...a, conso: conso[aid] }));
 
       const alerts = items
         .filter(a => a.status !== "ok")
@@ -302,10 +331,14 @@
             .filter(r => r.qte > 0)
             .map(r => `${esc(r.nom)} ${r.qte}`)
             .join(" · ");
+          const conso = consoLabel(a.conso);
           html += `
             <div class="stock-row ${a.status}">
-              <div class="nom">${esc(a.nom)}</div>
-              <div class="loc">${locs || "—"}</div>
+              <div class="sr-main">
+                <div class="nom">${esc(a.nom)}</div>
+                <div class="loc">${locs || "—"}</div>
+                ${conso ? `<div class="conso">${conso}</div>` : ""}
+              </div>
               <div class="total">${a.total}</div>
             </div>`;
         }
