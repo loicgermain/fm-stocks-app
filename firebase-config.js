@@ -52,10 +52,9 @@ export const CATEGORIES_DEFAUT = ["Boisson", "Nourriture"];
 export const ROLES = [
   { id: "admin",      label: "Admin",      pin: "1218", perm: "admin"      },
   { id: "logistique", label: "Logistique", pin: "1516", perm: "logistique" },
-  { id: "poste",      label: "Poste",      pin: "2024", perm: "sortie"     },
   { id: "cuisine",    label: "Cuisine",    pin: "3035", perm: "logistique" },
 ];
 
 // Version de l'app affichée en bas du dashboard et sur l'écran de code.
 // → garder en phase avec le numéro de CACHE dans sw.js (fm-stocks-vN).
-export const APP_VERSION = "20";
+export const APP_VERSION = "21";
