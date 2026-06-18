@@ -281,8 +281,10 @@
     document.getElementById("livr-sans").addEventListener("click", () => applyLivr(false));
     livrModal.addEventListener("click", e => { if (e.target === livrModal) closeLivr(); });
 
-    // Rafraîchit les "il y a X min" et le passage en "oublié"
-    setInterval(render, 30000);
+    // Rafraîchit les "il y a X min" et le passage en "oublié".
+    // Économe : ne recalcule pas quand l'appli est en arrière-plan (batterie) ;
+    // le retour au premier plan resynchronise via les listeners Firebase.
+    setInterval(() => { if (!document.hidden) render(); }, 30000);
   </script>
 </body>
 </html>

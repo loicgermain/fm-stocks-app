@@ -123,7 +123,8 @@
       el.className = "btn-banner" + (age >= DANGER_MS ? " danger" : age >= WARN_MS ? " warn" : "");
     }
     onValue(ref(db, "demandes"), s => { demandes = s.val() || {}; refreshReapproBanner(); });
-    setInterval(refreshReapproBanner, 60000);
+    // Timer économe : ne travaille pas quand l'appli est en arrière-plan (batterie)
+    setInterval(() => { if (!document.hidden) refreshReapproBanner(); }, 60000);
 
     function render() {
       renderTiles();
