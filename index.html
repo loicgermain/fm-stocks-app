@@ -49,7 +49,7 @@
     import { db, REMORQUES } from "./firebase-config.js";
     import * as cfg from "./firebase-config.js";   // version lue sans casser si absente
     import { esc, stockStatus, mountSunToggle, isAdmin, getMyRemorques, getPerm, getRole } from "./app.js";
-    import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { ref, onValue, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
     await requireAccess();
     // Cuisine a son propre dashboard
@@ -102,7 +102,10 @@
 
     onValue(ref(db, "articles"),   s => { articles   = s.val() || {}; render(); });
     onValue(ref(db, "stocks"),     s => { stocks     = s.val() || {}; render(); });
-    onValue(ref(db, "mouvements"), s => { mouvements = s.val() || {}; render(); });
+    // Économie de batterie : on ne synchronise que les 50 derniers mouvements,
+    // juste pour afficher la date de dernière MAJ par tuile. L'historique complet
+    // reste intact en base (consultable via historique.html / bilan.html).
+    onValue(query(ref(db, "mouvements"), limitToLast(50)), s => { mouvements = s.val() || {}; render(); });
     // Bandeau Réappro : compteur + couleur selon ancienneté de la tâche la plus vieille
     let demandes = {};
     const WARN_MS   = 15 * 60 * 1000;
